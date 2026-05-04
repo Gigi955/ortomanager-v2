@@ -107,7 +107,7 @@ echo  Patch versione APK da package.json...
 for /f "delims=" %%V in ('powershell -NoProfile -Command "(Get-Content '%WORK%\package.json' -Raw | ConvertFrom-Json).version"') do set APP_VER=%%V
 for /f "delims=" %%C in ('powershell -NoProfile -Command "$v='%APP_VER%' -split '\.'; [int]$v[0]*10000 + [int]$v[1]*100 + [int]$v[2]"') do set APP_VER_CODE=%%C
 echo  Versione: %APP_VER% (code %APP_VER_CODE%)
-powershell -NoProfile -Command "$f='%BGRADLE%'; $c=Get-Content $f -Raw; $c=$c -replace 'versionCode \d+',('versionCode '+'%APP_VER_CODE%'); $c=$c -replace 'versionName \"[^\"]*\"',('versionName \"'+'%APP_VER%'+'\"'); Set-Content $f $c -NoNewline; Write-Host 'Patch versione OK'"
+powershell -NoProfile -Command "$f='%BGRADLE%'; $q=[char]34; $c=Get-Content $f -Raw; $c=$c -replace 'versionCode \d+',('versionCode '+'%APP_VER_CODE%'); $c=$c -replace ('versionName '+$q+'[^'+$q+']*'+$q),('versionName '+$q+'%APP_VER%'+$q); Set-Content $f $c -NoNewline; Write-Host 'Patch versione OK'"
 
 :: --- Patch 2: gradle-wrapper - usa 8.13 (minimo richiesto da AGP, supporta Java 21) ---
 echo  Patch Gradle wrapper (8.13)...
