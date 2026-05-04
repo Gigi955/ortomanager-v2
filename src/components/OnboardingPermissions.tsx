@@ -14,6 +14,7 @@ import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Geolocation } from '@capacitor/geolocation';
 import { Camera as CapCamera } from '@capacitor/camera';
+import { fetchAndSaveLocation } from '@/lib/geolocation';
 
 //  Storage persistente via IndexedDB (funziona in Capacitor WebView) 
 // localStorage NON è affidabile in Capacitor su Android
@@ -287,6 +288,9 @@ export default function OnboardingPermissions({ onComplete }: OnboardingPermissi
       return next;
     });
     setRequesting(null);
+    if (id === 'location' && ok) {
+      fetchAndSaveLocation().catch(() => { /* silenzioso */ });
+    }
   };
 
   const handleRequestAll = async () => {

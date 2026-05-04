@@ -39,6 +39,7 @@ import {
   cancelAllTaskNotifications,
 } from '@/lib/notifications';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { fetchAndSaveLocation } from '@/lib/geolocation';
 
 const LANGUAGES = [
   { code: 'it', flag: '🇮🇹', label: 'Italiano' },
@@ -60,55 +61,17 @@ export default function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isSavingKey, setIsSavingKey] = useState(false);
 
-  const getCityFromCoordinates = async (lat: number, lon: number): Promise<string> => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=it`
-      );
-      const data = await response.json();
-      return data.address?.city || data.address?.town || data.address?.village || data.address?.municipality || data.address?.county || t('settings.location_unknown');
-    } catch {
-      return t('settings.location_saved');
-    }
-  };
-
-  const handleGetLocation = () => {
+  const handleGetLocation = async () => {
     setIsLoadingLocation(true);
     setLocationError(null);
-    if (!navigator.geolocation) {
-      setLocationError(t('settings.location_no_geo'));
-      setIsLoadingLocation(false);
-      toast.error(t('settings.location_error_geo'));
-      return;
+    const result = await fetchAndSaveLocation();
+    setIsLoadingLocation(false);
+    if (result) {
+      toast.success(t('settings.location_saved_city', { city: result.city || t('settings.location_unknown') }));
+    } else {
+      setLocationError(t('settings.location_get_error'));
+      toast.error(t('settings.location_get_error'));
     }
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        try {
-          const cityName = await getCityFromCoordinates(latitude, longitude);
-          if (settings?.id) {
-            await db.settings.update(settings.id, { city: cityName, latitude, longitude });
-          } else {
-            await db.settings.add({ city: cityName, latitude, longitude, notifications: true, theme: 'light' });
-          }
-          toast.success(t('settings.location_saved_city', { city: cityName }));
-        } catch {
-          toast.error(t('settings.location_save_error'));
-        } finally {
-          setIsLoadingLocation(false);
-        }
-      },
-      (error) => {
-        let errorMessage = t('settings.location_get_error');
-        if (error.code === error.PERMISSION_DENIED) errorMessage = t('settings.location_denied');
-        else if (error.code === error.POSITION_UNAVAILABLE) errorMessage = t('settings.location_unavailable');
-        else if (error.code === error.TIMEOUT) errorMessage = t('settings.location_timeout');
-        setLocationError(errorMessage);
-        toast.error(errorMessage);
-        setIsLoadingLocation(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
   };
 
   const handleToggleNotifications = async () => {
