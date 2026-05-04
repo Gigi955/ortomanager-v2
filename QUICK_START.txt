@@ -1,0 +1,107 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║              🌱 ORTOMANAGER - QUICK START 🌱                  ║
+║                                                               ║
+║     La tua app per gestire orto e giardino sul telefono      ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📱 COME INSTALLARE L'APP SUL TELEFONO:
+
+1️⃣ PUBBLICA L'APP ONLINE (necessario una sola volta)
+   
+   Opzione A - Vercel (CONSIGLIATO, gratis e semplicissimo):
+   
+   - Vai su https://vercel.com
+   - Crea un account gratuito
+   - Clicca "Add New Project"
+   - Importa questo progetto da GitHub (o carica la cartella)
+   - Vercel farà tutto automaticamente!
+   - Ti darà un link tipo: https://ortomanager-xxx.vercel.app
+   
+   Opzione B - Netlify (alternativa):
+   
+   - Vai su https://netlify.com
+   - Trascina la cartella "dist" (dopo aver fatto npm run build)
+   - Ottieni il link istantaneamente
+
+2️⃣ INSTALLA SUL TELEFONO
+
+   Su Android (Chrome):
+   - Apri il link nel browser Chrome
+   - Tocca il menu (⋮) → "Aggiungi a schermata Home"
+   - Fatto! L'icona apparirà sulla home ✨
+   
+   Su iPhone (Safari):
+   - Apri il link in Safari (non Chrome!)
+   - Tocca il pulsante Condividi (quadrato con freccia)
+   - "Aggiungi a Home"
+   - Fatto! L'icona apparirà sulla home ✨
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💻 PER SVILUPPATORI - TEST IN LOCALE:
+
+   Installazione dipendenze:
+   $ npm install
+   
+   Avvio server di sviluppo:
+   $ npm run dev
+   
+   L'app sarà su: http://localhost:8080
+   
+   Build per produzione:
+   $ npm run build
+   
+   La cartella 'dist' conterrà l'app pronta per il deploy
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ CARATTERISTICHE PRINCIPALI:
+
+   🌱 Gestione Piante
+      - Cataloga tutte le tue piante
+      - Traccia irrigazione automaticamente
+      - Monitora crescita e sviluppo
+   
+   📅 Calendario Lavori
+      - Organizza attività e task
+      - Scadenze e priorità
+      - Notifiche per promemoria
+   
+   👨‍🍳 Ricette
+      - Ricette con i tuoi prodotti
+      - Filtri per stagione e difficoltà
+      - Lista preferiti
+   
+   💾 Funziona OFFLINE
+      - Tutti i dati sul tuo telefono
+      - Nessuna connessione necessaria
+      - Privacy totale
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 DOCUMENTAZIONE:
+
+   - README.md         → Panoramica completa del progetto
+   - INSTALLAZIONE.md  → Guida dettagliata installazione
+   - GUIDA_USO.md      → Manuale d'uso dell'app
+   - Questo file       → Quick start veloce
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🆘 AIUTO RAPIDO:
+
+   Problema: "Non vedo il pulsante installa"
+   Soluzione: Usa Chrome su Android o Safari su iOS
+   
+   Problema: "I dati non si salvano"
+   Soluzione: Non usare modalità incognito, dai permessi storage
+   
+   Problema: "Non funziona offline"
+   Soluzione: Apri l'app almeno una volta online prima
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Fatto da Claude con ❤️ per il tuo orto
+Buon giardinaggio! 🌱🌻🍅

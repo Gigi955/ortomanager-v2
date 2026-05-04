@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 142 45% 35%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 142 45% 35%;
+    --radius: 0.75rem;
+    
+    /* Garden Theme Colors */
+    --garden-leaf: 142 45% 35%;
+    --garden-sage: 145 20% 55%;
+    --garden-earth: 30 25% 45%;
+    --garden-terracotta: 15 65% 55%;
+    --garden-cream: 45 35% 92%;
+    --garden-sun: 45 95% 55%;
+    --garden-water: 200 70% 50%;
+    --garden-wood: 25 35% 35%;
+    
+    /* Shadows */
+    --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 142 45% 45%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 142 45% 45%;
+    
+    /* Garden Theme Colors - Dark Mode */
+    --garden-leaf: 142 45% 45%;
+    --garden-sage: 145 20% 45%;
+    --garden-earth: 30 25% 35%;
+    --garden-terracotta: 15 65% 45%;
+    --garden-cream: 45 15% 15%;
+    --garden-sun: 45 75% 45%;
+    --garden-water: 200 60% 40%;
+    --garden-wood: 25 25% 25%;
+  }
+
+  /* Palette: Ocean (blu mare) */
+  :root[data-palette="ocean"] {
+    --garden-leaf: 200 70% 42%;
+    --garden-sage: 195 35% 58%;
+    --ring: 200 70% 42%;
+  }
+  :root.dark[data-palette="ocean"] {
+    --garden-leaf: 200 70% 52%;
+    --garden-sage: 195 35% 48%;
+  }
+
+  /* Palette: Sunset (arancio caldo) */
+  :root[data-palette="sunset"] {
+    --garden-leaf: 18 75% 50%;
+    --garden-sage: 30 55% 60%;
+    --ring: 18 75% 50%;
+  }
+  :root.dark[data-palette="sunset"] {
+    --garden-leaf: 18 75% 55%;
+    --garden-sage: 30 55% 50%;
+  }
+
+  /* Palette: Lavender (viola tenue) */
+  :root[data-palette="lavender"] {
+    --garden-leaf: 270 45% 50%;
+    --garden-sage: 280 25% 65%;
+    --ring: 270 45% 50%;
+  }
+  :root.dark[data-palette="lavender"] {
+    --garden-leaf: 270 50% 60%;
+    --garden-sage: 280 25% 50%;
+  }
+
+  /* Palette: Terracotta (rossiccio caldo) */
+  :root[data-palette="terracotta"] {
+    --garden-leaf: 15 65% 50%;
+    --garden-sage: 25 40% 60%;
+    --ring: 15 65% 50%;
+  }
+  :root.dark[data-palette="terracotta"] {
+    --garden-leaf: 15 65% 55%;
+    --garden-sage: 25 40% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Nunito', system-ui, sans-serif;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/30 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary/50;
+}
+
+/* Smooth transitions */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Safe area insets for iOS */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

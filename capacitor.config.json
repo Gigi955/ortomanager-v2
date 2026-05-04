@@ -1,0 +1,13 @@
+{
+  "appId": "it.ortomanager.app",
+  "appName": "OrtoManager",
+  "webDir": "dist",
+  "android": {
+    "buildOptions": {
+      "releaseType": "APK"
+    }
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
