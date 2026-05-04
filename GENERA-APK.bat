@@ -20,7 +20,7 @@ echo.
 
 set SRC=C:\APPLICAZIONI CLAUDE\ortomanager-v2
 set WORK=C:\ortomanager-build
-set APK_DEST=C:\Users\giuse\Desktop\OrtoManager.apk
+set APK_DEST=C:\APPLICAZIONI CLAUDE\ortomanager-v2\OrtoManager.apk
 set ANDROID_HOME=C:\Users\giuse\AppData\Local\Android\Sdk
 set JAVA_HOME=C:\Users\giuse\.jdks\jdk-21.0.6+7
 set PATH=%JAVA_HOME%\bin;%ANDROID_HOME%\platform-tools;%ANDROID_HOME%\tools;%PATH%
@@ -137,7 +137,7 @@ if exist "%APK_SRC%" (
     echo.
     echo  ============================================================
     echo.
-    echo   APK PRONTO SUL DESKTOP!
+    echo   APK PRONTO NELLA CARTELLA PROGETTO!
     echo.
     echo   File: OrtoManager.apk
     echo.
@@ -148,7 +148,7 @@ if exist "%APK_SRC%" (
     echo    3. Apri il file APK e premi Installa
     echo.
     echo  ============================================================
-    explorer "C:\Users\giuse\Desktop"
+    explorer "C:\APPLICAZIONI CLAUDE\ortomanager-v2"
 ) else (
     echo  APK non trovato. Controlla gli errori sopra.
 )

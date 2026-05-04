@@ -22,6 +22,9 @@ android/
 # Build log
 .build-test.log
 
+# APK output (generato da GENERA-APK.bat)
+OrtoManager.apk
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
