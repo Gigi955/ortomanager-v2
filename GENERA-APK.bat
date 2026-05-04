@@ -102,6 +102,13 @@ echo  Patch Java 21 in build.gradle...
 set BGRADLE=%WORK%\android\app\build.gradle
 powershell -NoProfile -Command "$f='%BGRADLE%'; $c=Get-Content $f -Raw; if ($c -notmatch 'compileOptions') { $c=$c -replace '(    buildTypes)', \"    compileOptions {`n        sourceCompatibility JavaVersion.VERSION_21`n        targetCompatibility JavaVersion.VERSION_21`n    }`n`$1\"; Set-Content $f $c -NoNewline }; Write-Host 'Patch Java 21 OK'"
 
+:: --- Patch 1b: build.gradle - inietta versionName/versionCode da package.json ---
+echo  Patch versione APK da package.json...
+for /f "delims=" %%V in ('powershell -NoProfile -Command "(Get-Content '%WORK%\package.json' -Raw | ConvertFrom-Json).version"') do set APP_VER=%%V
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$v='%APP_VER%' -split '\.'; [int]$v[0]*10000 + [int]$v[1]*100 + [int]$v[2]"') do set APP_VER_CODE=%%C
+echo  Versione: %APP_VER% (code %APP_VER_CODE%)
+powershell -NoProfile -Command "$f='%BGRADLE%'; $c=Get-Content $f -Raw; $c=$c -replace 'versionCode \d+',('versionCode '+'%APP_VER_CODE%'); $c=$c -replace 'versionName \"[^\"]*\"',('versionName \"'+'%APP_VER%'+'\"'); Set-Content $f $c -NoNewline; Write-Host 'Patch versione OK'"
+
 :: --- Patch 2: gradle-wrapper - usa 8.13 (minimo richiesto da AGP, supporta Java 21) ---
 echo  Patch Gradle wrapper (8.13)...
 set GWPROPS=%WORK%\android\gradle\wrapper\gradle-wrapper.properties

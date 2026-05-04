@@ -538,7 +538,7 @@ export default function SettingsPage() {
             <div className="text-center space-y-2">
               <div className="text-4xl mb-2">🌱</div>
               <h3 className="font-bold text-lg dark:text-white">{t('settings.app_name')}</h3>
-              <p className="text-sm text-muted-foreground">{t('settings.app_version')}</p>
+              <p className="text-sm text-muted-foreground">{t('settings.app_version', { version: __APP_VERSION__ })}</p>
               <p className="text-xs text-muted-foreground">{t('settings.app_desc')}</p>
             </div>
           </CardContent>

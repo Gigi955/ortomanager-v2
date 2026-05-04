@@ -240,7 +240,7 @@
     "guide_title": "OrtoManager Anleitung",
     "guide_desc": "Entdecken Sie alle Funktionen",
     "app_name": "OrtoManager",
-    "app_version": "Version 2.0",
+    "app_version": "Version {{version}}",
     "app_desc": "Ihre App zur Verwaltung von Garten und Gemüsegarten"
   },
   "stats": {

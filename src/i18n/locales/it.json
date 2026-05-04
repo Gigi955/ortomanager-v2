@@ -240,7 +240,7 @@
     "guide_title": "Guida OrtoManager",
     "guide_desc": "Scopri come usare tutte le funzionalità",
     "app_name": "OrtoManager",
-    "app_version": "Versione 2.0",
+    "app_version": "Versione {{version}}",
     "app_desc": "La tua app per gestire orto e giardino"
   },
   "stats": {

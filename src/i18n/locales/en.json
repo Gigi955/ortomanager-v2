@@ -240,7 +240,7 @@
     "guide_title": "OrtoManager Guide",
     "guide_desc": "Discover how to use all features",
     "app_name": "OrtoManager",
-    "app_version": "Version 2.0",
+    "app_version": "Version {{version}}",
     "app_desc": "Your app for managing garden and vegetable patch"
   },
   "stats": {
