@@ -224,10 +224,11 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
               <Label htmlFor="edit-num">{t('dialogs.editPlant.num_plants')}</Label>
               <Input
                 id="edit-num"
-                type="number"
-                min="0"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={numberOfPlants}
-                onChange={e => setNumberOfPlants(e.target.value.replace(/^0+(?=\d)/, ''))}
+                onChange={e => setNumberOfPlants(e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, ''))}
                 placeholder="es. 3"
               />
             </div>

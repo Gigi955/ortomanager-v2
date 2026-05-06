@@ -542,12 +542,13 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
             <Label htmlFor="numberOfPlants">{t('dialogs.addPlant.num_plants')}</Label>
             <Input
               id="numberOfPlants"
-              type="number"
-              min="0"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={numberOfPlants}
               onChange={(e) => {
-                const stripped = e.target.value.replace(/^0+(?=\d)/, '');
-                setNumberOfPlants(Math.max(0, parseInt(stripped) || 0));
+                const digits = e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+                setNumberOfPlants(digits === '' ? 0 : parseInt(digits, 10));
               }}
               placeholder="0"
             />
