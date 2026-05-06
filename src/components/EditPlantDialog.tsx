@@ -227,7 +227,7 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
                 type="number"
                 min="0"
                 value={numberOfPlants}
-                onChange={e => setNumberOfPlants(e.target.value)}
+                onChange={e => setNumberOfPlants(e.target.value.replace(/^0+(?=\d)/, ''))}
                 placeholder="es. 3"
               />
             </div>

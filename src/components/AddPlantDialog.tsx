@@ -545,7 +545,10 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
               type="number"
               min="0"
               value={numberOfPlants}
-              onChange={(e) => setNumberOfPlants(Math.max(0, parseInt(e.target.value) || 0))}
+              onChange={(e) => {
+                const stripped = e.target.value.replace(/^0+(?=\d)/, '');
+                setNumberOfPlants(Math.max(0, parseInt(stripped) || 0));
+              }}
               placeholder="0"
             />
           </div>
