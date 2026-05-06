@@ -20,7 +20,6 @@ echo.
 
 set SRC=C:\APPLICAZIONI CLAUDE\ortomanager-v2
 set WORK=C:\ortomanager-build
-set APK_DEST=C:\APPLICAZIONI CLAUDE\ortomanager-v2\OrtoManager.apk
 set ANDROID_HOME=C:\Users\giuse\AppData\Local\Android\Sdk
 set JAVA_HOME=C:\Users\giuse\.jdks\jdk-21.0.6+7
 set PATH=%JAVA_HOME%\bin;%ANDROID_HOME%\platform-tools;%ANDROID_HOME%\tools;%PATH%
@@ -107,6 +106,7 @@ echo  Patch versione APK da package.json...
 for /f "delims=" %%V in ('powershell -NoProfile -Command "(Get-Content '%WORK%\package.json' -Raw | ConvertFrom-Json).version"') do set APP_VER=%%V
 for /f "delims=" %%C in ('powershell -NoProfile -Command "$v='%APP_VER%' -split '\.'; [int]$v[0]*10000 + [int]$v[1]*100 + [int]$v[2]"') do set APP_VER_CODE=%%C
 echo  Versione: %APP_VER% (code %APP_VER_CODE%)
+set APK_DEST=C:\APPLICAZIONI CLAUDE\ortomanager-v2\OrtoManager-v%APP_VER%.apk
 powershell -NoProfile -Command "$f='%BGRADLE%'; $q=[char]34; $c=Get-Content $f -Raw; $c=$c -replace 'versionCode \d+',('versionCode '+'%APP_VER_CODE%'); $c=$c -replace ('versionName '+$q+'[^'+$q+']*'+$q),('versionName '+$q+'%APP_VER%'+$q); Set-Content $f $c -NoNewline; Write-Host 'Patch versione OK'"
 
 :: --- Patch 2: gradle-wrapper - usa 8.13 (minimo richiesto da AGP, supporta Java 21) ---
@@ -146,10 +146,10 @@ if exist "%APK_SRC%" (
     echo.
     echo   APK PRONTO NELLA CARTELLA PROGETTO!
     echo.
-    echo   File: OrtoManager.apk
+    echo   File: OrtoManager-v%APP_VER%.apk
     echo.
     echo   Come installarlo:
-    echo    1. Manda OrtoManager.apk via WhatsApp / Drive / USB
+    echo    1. Manda OrtoManager-v%APP_VER%.apk via WhatsApp / Drive / USB
     echo    2. Sul telefono: Impostazioni > Sicurezza >
     echo       abilita "Installa app da fonti sconosciute"
     echo    3. Apri il file APK e premi Installa
