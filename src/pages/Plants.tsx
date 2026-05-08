@@ -34,6 +34,8 @@ import {
   ChevronRight,
   Clock,
   Share2,
+  Link2,
+  Paperclip,
 } from 'lucide-react';
 import { formatShortDate, getStatusColor, getStatusLabel, needsWatering } from '@/lib/utils';
 import AddPlantDialog from '@/components/AddPlantDialog';
@@ -328,6 +330,40 @@ function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; on
           </div>
         )}
 
+        {plant.attachments && plant.attachments.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {plant.attachments.map(att => (
+              <button
+                key={att.id}
+                type="button"
+                onClick={() => {
+                  if (att.type === 'link') {
+                    window.open(att.data, '_blank', 'noopener,noreferrer');
+                  } else {
+                    const a = document.createElement('a');
+                    a.href = att.data;
+                    a.download = att.name;
+                    a.target = '_blank';
+                    a.rel = 'noopener';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  }
+                }}
+                className="inline-flex items-center gap-1 max-w-[180px] px-2 py-1 rounded-full border border-green-200 bg-white text-xs text-gray-700 hover:bg-green-50"
+                title={att.type === 'link' ? att.data : att.name}
+              >
+                {att.type === 'link' ? (
+                  <Link2 className="w-3 h-3 text-garden-leaf shrink-0" />
+                ) : (
+                  <Paperclip className="w-3 h-3 text-garden-leaf shrink-0" />
+                )}
+                <span className="truncate">{att.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Galleria foto pianta */}
         {allPhotos.length > 0 && (
           <div className="mt-3">
@@ -536,6 +572,16 @@ export default function PlantsPage() {
     return matchesSearch && matchesCategory;
   });
 
+  // Ordina: prima le piante che hanno bisogno di acqua (needsWatering()),
+  // mantenendo per il resto l'ordine originale (Array.sort è stabile su V8 ≥ 7).
+  const sortedPlants = filteredPlants
+    ? [...filteredPlants].sort((a, b) => {
+        const aNeeds = needsWatering(a) ? 0 : 1;
+        const bNeeds = needsWatering(b) ? 0 : 1;
+        return aNeeds - bNeeds;
+      })
+    : filteredPlants;
+
   const filteredTypes = plantTypes?.filter(pt => {
     const matchesSearch = pt.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          pt.scientificName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -659,8 +705,8 @@ export default function PlantsPage() {
       {/* Contenuto tab */}
       <div className="px-4 mt-4 space-y-3">
         {activeTab === 'mie' ? (
-          filteredPlants && filteredPlants.length > 0 ? (
-            filteredPlants.map((plant) => (
+          sortedPlants && sortedPlants.length > 0 ? (
+            sortedPlants.map((plant) => (
               <PlantCard key={plant.id} plant={plant} onEdit={setEditingPlant} onDiagnose={setDiagnosticPlant} onTimeline={setTimelinePlant} />
             ))
           ) : (

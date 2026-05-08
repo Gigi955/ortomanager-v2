@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { db, Plant } from '@/lib/db';
+import { db, Plant, Attachment } from '@/lib/db';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Trash2, Camera, X, Plus } from 'lucide-react';
+import { Trash2, Camera, X, Plus, Link2, Paperclip, FileText, Download, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface EditPlantDialogProps {
@@ -59,10 +59,15 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
   const [wateringFrequency, setWateringFrequency] = useState('');
   const [notes, setNotes] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkLabel, setLinkLabel] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
 
   // Popola il form quando si apre il dialog
   useEffect(() => {
@@ -83,6 +88,10 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
       const extra = plant.images ?? [];
       const merged = [...new Set([...legacy, ...extra])];
       setImages(merged);
+      setAttachments(plant.attachments ?? []);
+      setShowLinkInput(false);
+      setLinkUrl('');
+      setLinkLabel('');
       setShowDeleteConfirm(false);
     }
   }, [plant, open]);
@@ -110,6 +119,7 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
         notes: notes.trim() || undefined,
         imageUrl: images[0] || undefined,
         images: images.length > 0 ? images : undefined,
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
       toast.success(t('dialogs.editPlant.success_update'));
       onOpenChange(false);
@@ -141,6 +151,83 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const newAttachmentId = () =>
+    `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const handleAttachmentFile = (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error(t('dialogs.editPlant.attachment_too_big'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setAttachments(prev => [...prev, {
+        id: newAttachmentId(),
+        type: 'file',
+        name: file.name,
+        data: dataUrl,
+        mimeType: file.type || undefined,
+        size: file.size,
+        addedAt: new Date(),
+      }]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAttachmentPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    Array.from(files).forEach(f => handleAttachmentFile(f));
+    e.target.value = '';
+  };
+
+  const confirmAddLink = () => {
+    let url = linkUrl.trim();
+    if (!url) { toast.error(t('dialogs.editPlant.link_url_required')); return; }
+    if (!/^https?:\/\//i.test(url) && !url.startsWith('mailto:')) {
+      url = 'https://' + url;
+    }
+    const label = linkLabel.trim() || url.replace(/^https?:\/\//i, '');
+    setAttachments(prev => [...prev, {
+      id: newAttachmentId(),
+      type: 'link',
+      name: label,
+      data: url,
+      addedAt: new Date(),
+    }]);
+    setLinkUrl('');
+    setLinkLabel('');
+    setShowLinkInput(false);
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const openAttachment = (att: Attachment) => {
+    if (att.type === 'link') {
+      window.open(att.data, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    // file: triggera download/apertura
+    const a = document.createElement('a');
+    a.href = att.data;
+    a.download = att.name;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   };
 
   const handleDelete = async () => {
@@ -345,6 +432,108 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
               onChange={e => setNotes(e.target.value)}
               placeholder={t('dialogs.editPlant.notes_ph')}
               rows={3}
+            />
+          </div>
+
+          {/* Allegati (file e link) */}
+          <div className="space-y-2">
+            <Label>{t('dialogs.editPlant.attachments', { count: attachments.length })}</Label>
+
+            {attachments.length > 0 && (
+              <ul className="space-y-1.5">
+                {attachments.map(att => (
+                  <li
+                    key={att.id}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-green-200 bg-white"
+                  >
+                    {att.type === 'link' ? (
+                      <Link2 className="w-4 h-4 text-garden-leaf shrink-0" />
+                    ) : (
+                      <FileText className="w-4 h-4 text-garden-leaf shrink-0" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => openAttachment(att)}
+                      className="flex-1 min-w-0 text-left text-sm truncate hover:underline"
+                      title={att.type === 'link' ? att.data : att.name}
+                    >
+                      {att.name}
+                      {att.type === 'file' && att.size ? (
+                        <span className="ml-2 text-xs text-gray-400">{formatFileSize(att.size)}</span>
+                      ) : null}
+                    </button>
+                    {att.type === 'link' ? (
+                      <ExternalLink className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.id)}
+                      className="text-gray-400 hover:text-red-500 shrink-0"
+                      aria-label={t('dialogs.editPlant.attachment_remove')}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {showLinkInput ? (
+              <div className="space-y-2 p-3 border border-dashed border-green-200 rounded-xl bg-green-50/40">
+                <Input
+                  value={linkUrl}
+                  onChange={e => setLinkUrl(e.target.value)}
+                  placeholder={t('dialogs.editPlant.link_url_ph')}
+                  autoFocus
+                />
+                <Input
+                  value={linkLabel}
+                  onChange={e => setLinkLabel(e.target.value)}
+                  placeholder={t('dialogs.editPlant.link_label_ph')}
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setShowLinkInput(false); setLinkUrl(''); setLinkLabel(''); }}
+                  >
+                    {t('dialogs.editPlant.cancel')}
+                  </Button>
+                  <Button type="button" size="sm" onClick={confirmAddLink}>
+                    {t('dialogs.editPlant.add_link_confirm')}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLinkInput(true)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-garden-leaf hover:text-garden-leaf transition-colors"
+                >
+                  <Link2 className="w-4 h-4" />
+                  {t('dialogs.editPlant.add_link')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => attachmentInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-garden-leaf hover:text-garden-leaf transition-colors"
+                >
+                  <Paperclip className="w-4 h-4" />
+                  {t('dialogs.editPlant.add_file')}
+                </button>
+              </div>
+            )}
+
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleAttachmentPick}
             />
           </div>
 

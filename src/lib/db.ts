@@ -32,6 +32,17 @@ export interface PlantType {
   diseases?: Disease[];
 }
 
+// Allegato collegato alla pianta (link esterno o file salvato come dataURL)
+export interface Attachment {
+  id: string;            // identificativo locale (timestamp+random)
+  type: 'file' | 'link';
+  name: string;          // etichetta visualizzata (filename o testo del link)
+  data: string;          // dataURL base64 per file, URL per link
+  mimeType?: string;     // solo file
+  size?: number;         // solo file (byte)
+  addedAt: Date;
+}
+
 // Piante dell'utente
 export interface Plant {
   id?: number;
@@ -49,6 +60,7 @@ export interface Plant {
   imageUrl?: string;
   images?: string[]; // array di foto aggiuntive (base64)
   category: 'vegetables' | 'fruits' | 'herbs' | 'flowers' | 'trees';
+  attachments?: Attachment[]; // file/link allegati alle note
 }
 
 // Impostazioni dell'app
@@ -315,6 +327,21 @@ class OrtoDatabase extends Dexie {
 
     // Versione 8 - planimetria orto (gardenLayout singleton)
     this.version(8).stores({
+      plantTypes: '++id, name, category',
+      plants: '++id, name, category, status, plantedDate, plantTypeId',
+      tasks: '++id, dueDate, category, priority, plantId',
+      recipes: '++id, title, difficulty, isFavorite',
+      harvests: '++id, plantId, date',
+      notes: '++id, date, plantId',
+      settings: '++id',
+      plantPhotos: '++id, plantId, date',
+      gardenLayout: '++id',
+    });
+
+    // Versione 9 - allegati (file/link) sulle piante. Nessun nuovo indice: il
+    // campo Plant.attachments è opzionale e non indicizzato, quindi gli stores
+    // restano invariati. Il bump serve solo per coerenza di versione del DB.
+    this.version(9).stores({
       plantTypes: '++id, name, category',
       plants: '++id, name, category, status, plantedDate, plantTypeId',
       tasks: '++id, dueDate, category, priority, plantId',
