@@ -74,6 +74,7 @@ export default function AddPlantDialog({ open, onOpenChange, preselectedPlantTyp
 
   // Campi comuni
   const [numberOfPlants, setNumberOfPlants] = useState(0);
+  const [priceStr, setPriceStr] = useState('');
   const [location, setLocation] = useState('');
   const [plantedDate, setPlantedDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
@@ -176,6 +177,7 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
     setCustomCategory('vegetables');
     setCustomWatering(3);
     setNumberOfPlants(0);
+    setPriceStr('');
     setLocation('');
     setPlantedDate(new Date().toISOString().split('T')[0]);
     setNotes('');
@@ -232,6 +234,9 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
       return;
     }
 
+    const priceNum = priceStr.trim() ? parseFloat(priceStr.replace(',', '.')) : NaN;
+    const priceField = !isNaN(priceNum) && priceNum > 0 ? priceNum : undefined;
+
     try {
       if (mode === 'catalog' && selectedPlantType) {
         await db.plants.add({
@@ -247,6 +252,7 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
           category: selectedPlantType.category,
           notes: notes || undefined,
           imageUrl: imageData || undefined,
+          price: priceField,
         });
       } else {
         await db.plants.add({
@@ -259,6 +265,7 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
           category: customCategory,
           notes: notes || undefined,
           imageUrl: imageData || undefined,
+          price: priceField,
         });
       }
 
@@ -552,6 +559,28 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
               }}
               placeholder="0"
             />
+          </div>
+
+          {/* Prezzo per piantina */}
+          <div className="space-y-2">
+            <Label htmlFor="plantPrice">{t('dialogs.addPlant.price')}</Label>
+            <Input
+              id="plantPrice"
+              type="text"
+              inputMode="decimal"
+              value={priceStr}
+              onChange={(e) => setPriceStr(e.target.value)}
+              placeholder={t('dialogs.addPlant.price_ph')}
+            />
+            {(() => {
+              const p = parseFloat(priceStr.replace(',', '.'));
+              if (isNaN(p) || p <= 0 || numberOfPlants <= 0) return null;
+              return (
+                <p className="text-xs text-muted-foreground">
+                  {t('dialogs.addPlant.total_est', { value: (p * numberOfPlants).toFixed(2) })}
+                </p>
+              );
+            })()}
           </div>
 
           {/* Data semina */}

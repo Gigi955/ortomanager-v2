@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db, Harvest } from '@/lib/db';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -12,33 +12,33 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { HARVEST_UNITS } from './AddHarvestDialog';
 
-interface AddHarvestDialogProps {
+interface EditHarvestDialogProps {
+  harvest: Harvest | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export const HARVEST_UNITS = ['kg', 'g', 'pezzi', 'mazzi', 'litri', 'mazzetti', 'cassette'];
-
-export default function AddHarvestDialog({ open, onOpenChange }: AddHarvestDialogProps) {
+export default function EditHarvestDialog({ harvest, open, onOpenChange }: EditHarvestDialogProps) {
   const plants = useLiveQuery(() => db.plants.toArray());
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const [plantId, setPlantId] = useState<string>('');
-  const [quantityStr, setQuantityStr] = useState<string>('1');
+  const [quantityStr, setQuantityStr] = useState<string>('');
   const [unit, setUnit] = useState('kg');
   const [priceStr, setPriceStr] = useState<string>('');
-  const [date, setDate] = useState(todayStr);
+  const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
 
-  const reset = () => {
-    setPlantId('');
-    setQuantityStr('1');
-    setUnit('kg');
-    setPriceStr('');
-    setDate(todayStr);
-    setNotes('');
-  };
+  useEffect(() => {
+    if (harvest && open) {
+      setQuantityStr(String(harvest.quantity));
+      setUnit(harvest.unit);
+      setPriceStr(harvest.price != null ? String(harvest.price) : '');
+      const d = harvest.date instanceof Date ? harvest.date : new Date(harvest.date);
+      setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      setNotes(harvest.notes ?? '');
+    }
+  }, [harvest, open]);
 
   const parsedQuantity = useMemo(() => {
     const n = parseFloat(quantityStr.replace(',', '.'));
@@ -52,9 +52,16 @@ export default function AddHarvestDialog({ open, onOpenChange }: AddHarvestDialo
 
   const total = parsedQuantity !== null && parsedPrice !== null ? parsedQuantity * parsedPrice : null;
 
+  const plantName = useMemo(() => {
+    if (!harvest) return '';
+    const p = plants?.find(pl => pl.id === harvest.plantId);
+    if (!p) return 'Pianta rimossa';
+    return p.variety ? `${p.name} (${p.variety})` : p.name;
+  }, [harvest, plants]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!plantId) { toast.error('Seleziona una pianta'); return; }
+    if (!harvest?.id) return;
     if (parsedQuantity === null) {
       toast.error('Inserisci una quantita valida (es: 1.5 oppure 500)');
       return;
@@ -64,17 +71,14 @@ export default function AddHarvestDialog({ open, onOpenChange }: AddHarvestDialo
       return;
     }
     try {
-      await db.harvests.add({
-        plantId: parseInt(plantId),
+      await db.harvests.update(harvest.id, {
         quantity: parsedQuantity,
         unit,
         price: parsedPrice,
         date: new Date(date),
         notes: notes.trim() || undefined,
       });
-      const plant = plants?.find(p => p.id === parseInt(plantId));
-      toast.success(`Raccolta registrata: ${parsedQuantity} ${unit} di ${plant?.name || 'pianta'}`);
-      reset();
+      toast.success('Raccolta aggiornata');
       onOpenChange(false);
     } catch (err) {
       toast.error('Errore nel salvataggio');
@@ -83,36 +87,28 @@ export default function AddHarvestDialog({ open, onOpenChange }: AddHarvestDialo
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Registra Raccolta</DialogTitle>
-          <DialogDescription>Aggiungi una nuova raccolta alle statistiche</DialogDescription>
+          <DialogTitle>Modifica Raccolta</DialogTitle>
+          <DialogDescription>Aggiorna i dati di una raccolta esistente</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Pianta *</Label>
-            <Select value={plantId} onValueChange={setPlantId}>
-              <SelectTrigger><SelectValue placeholder="Seleziona pianta..." /></SelectTrigger>
-              <SelectContent>
-                {plants?.map(p => (
-                  <SelectItem key={p.id} value={p.id!.toString()}>
-                    {p.name}{p.variety ? ` (${p.variety})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Pianta</Label>
+            <div className="px-3 py-2 rounded-md border bg-gray-50 dark:bg-gray-800 text-sm dark:text-gray-200">
+              {plantName}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="harvest-qty">Quantita *</Label>
+              <Label htmlFor="edit-harvest-qty">Quantita *</Label>
               <Input
-                id="harvest-qty"
+                id="edit-harvest-qty"
                 type="text"
                 inputMode="decimal"
-                placeholder="es: 1.5 oppure 500"
                 value={quantityStr}
                 onChange={e => setQuantityStr(e.target.value)}
               />
@@ -129,9 +125,9 @@ export default function AddHarvestDialog({ open, onOpenChange }: AddHarvestDialo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="harvest-price">Prezzo unitario (€ / {unit}) *</Label>
+            <Label htmlFor="edit-harvest-price">Prezzo unitario (€ / {unit}) *</Label>
             <Input
-              id="harvest-price"
+              id="edit-harvest-price"
               type="text"
               inputMode="decimal"
               placeholder="es: 2.50"
@@ -146,18 +142,18 @@ export default function AddHarvestDialog({ open, onOpenChange }: AddHarvestDialo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="harvest-date">Data raccolta *</Label>
-            <Input id="harvest-date" type="date" value={date} onChange={e => setDate(e.target.value)} />
+            <Label htmlFor="edit-harvest-date">Data raccolta *</Label>
+            <Input id="edit-harvest-date" type="date" value={date} onChange={e => setDate(e.target.value)} />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="harvest-notes">Note</Label>
-            <Textarea id="harvest-notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Qualita, osservazioni..." rows={2} />
+            <Label htmlFor="edit-harvest-notes">Note</Label>
+            <Textarea id="edit-harvest-notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Qualita, osservazioni..." rows={2} />
           </div>
 
           <DialogFooter className="flex gap-2">
-            <Button type="button" variant="outline" onClick={() => { reset(); onOpenChange(false); }}>Annulla</Button>
-            <Button type="submit">Registra raccolta</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
+            <Button type="submit">Salva modifiche</Button>
           </DialogFooter>
         </form>
       </DialogContent>

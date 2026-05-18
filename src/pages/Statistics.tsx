@@ -9,8 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { ArrowLeft, Plus, TrendingUp, TrendingDown, Minus, Package, Trophy, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, TrendingUp, TrendingDown, Minus, Package, Trophy, FileText, Pencil, Trash2, Euro } from 'lucide-react';
 import AddHarvestDialog from '@/components/AddHarvestDialog';
+import EditHarvestDialog from '@/components/EditHarvestDialog';
 import { computeAchievements } from '@/lib/achievements';
 import AnnualReportDialog from '@/components/AnnualReportDialog';
 
@@ -20,6 +21,7 @@ export default function StatisticsPage() {
   const [showAddHarvest, setShowAddHarvest] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [yearOffset, setYearOffset] = useState(0); // 0 = anno corrente
+  const [editingHarvest, setEditingHarvest] = useState<Harvest | null>(null);
 
   const lang = i18n.language?.split('-')[0] || 'it';
 
@@ -81,6 +83,35 @@ export default function StatisticsPage() {
     });
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   }, [currentYearHarvests, plantMap]);
+
+  // Risparmio autoproduzione (anno corrente): somma di quantita * price per pianta
+  const savingsByPlant = useMemo(() => {
+    const map = new Map<number, { plant: Plant; total: number }>();
+    currentYearHarvests.forEach(h => {
+      if (h.price == null || h.price <= 0) return;
+      const plant = plantMap.get(h.plantId);
+      if (!plant) return;
+      const value = h.quantity * h.price;
+      if (!map.has(h.plantId)) map.set(h.plantId, { plant, total: 0 });
+      map.get(h.plantId)!.total += value;
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [currentYearHarvests, plantMap]);
+
+  const savingsMonthly = useMemo(() => {
+    const arr = new Array(12).fill(0);
+    currentYearHarvests.forEach(h => {
+      if (h.price == null || h.price <= 0) return;
+      const m = new Date(h.date).getMonth();
+      arr[m] += h.quantity * h.price;
+    });
+    return arr;
+  }, [currentYearHarvests]);
+
+  const savingsYearTotal = useMemo(
+    () => savingsMonthly.reduce((s, v) => s + v, 0),
+    [savingsMonthly],
+  );
 
   // Dati mensili per grafico
   const monthlyData = useMemo(() => {
@@ -295,6 +326,74 @@ export default function StatisticsPage() {
               </Card>
             )}
 
+            {/* Risparmio autoproduzione */}
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-base dark:text-white flex items-center gap-2">
+                  <Euro className="w-5 h-5 text-garden-leaf" />
+                  {t('stats.savings_title', { year: currentYear })}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {savingsByPlant.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t('stats.no_savings_data')}
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 text-center">
+                      <p className="text-xs uppercase tracking-wide text-green-700 dark:text-green-300">
+                        {t('stats.savings_year_total')}
+                      </p>
+                      <p className="text-3xl font-bold text-garden-leaf mt-1">
+                        € {savingsYearTotal.toFixed(2)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                        {t('stats.savings_per_plant')}
+                      </p>
+                      <div className="space-y-1.5">
+                        {savingsByPlant.map(({ plant, total }) => (
+                          <div key={plant.id} className="flex items-center justify-between py-1.5 border-b dark:border-gray-700 last:border-0">
+                            <div>
+                              <p className="font-medium text-sm dark:text-white">{plant.name}</p>
+                              {plant.variety && <p className="text-xs text-muted-foreground">{plant.variety}</p>}
+                            </div>
+                            <p className="font-semibold text-garden-leaf">€ {total.toFixed(2)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                        {t('stats.savings_monthly')}
+                      </p>
+                      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                        {savingsMonthly.map((v, i) => (
+                          <div
+                            key={i}
+                            className={`rounded-lg p-2 text-center border ${
+                              v > 0
+                                ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
+                                : 'bg-gray-50 border-gray-200 dark:bg-gray-700/40 dark:border-gray-600'
+                            }`}
+                          >
+                            <p className="text-[10px] text-muted-foreground">{MONTHS_SHORT[i]}</p>
+                            <p className={`text-xs font-semibold ${v > 0 ? 'text-garden-leaf' : 'text-gray-400'}`}>
+                              € {v.toFixed(2)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Lista ultime raccolte */}
             <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
@@ -305,24 +404,36 @@ export default function StatisticsPage() {
                   {harvests?.slice(0, 15).map(h => {
                     const plant = plantMap.get(h.plantId);
                     const d = new Date(h.date);
+                    const lineTotal = h.price != null && h.price > 0 ? h.quantity * h.price : null;
                     return (
                       <div key={h.id} className="flex items-center justify-between py-2 border-b dark:border-gray-700 last:border-0">
-                        <div>
-                          <p className="font-medium text-sm dark:text-white">{plant?.name ?? t('stats.plant_removed')}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm dark:text-white truncate">{plant?.name ?? t('stats.plant_removed')}</p>
                           <p className="text-xs text-muted-foreground">
                             {d.getDate()} {MONTHS_SHORT[d.getMonth()]} {d.getFullYear()}
+                            {lineTotal !== null && ` · € ${lineTotal.toFixed(2)}`}
                             {h.notes && ` · ${h.notes}`}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <Badge variant="secondary" className="dark:bg-gray-700 dark:text-gray-300">
                             {h.quantity % 1 === 0 ? h.quantity : h.quantity.toFixed(1)} {h.unit}
                           </Badge>
                           <button
-                            onClick={async () => { if (h.id) await db.harvests.delete(h.id); }}
-                            className="text-gray-300 hover:text-red-400 transition-colors"
+                            onClick={() => setEditingHarvest(h)}
+                            className="p-1.5 text-gray-400 hover:text-garden-leaf transition-colors"
+                            aria-label={t('stats.edit_harvest_btn')}
+                            title={t('stats.edit_harvest_btn')}
                           >
-
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={async () => { if (h.id) await db.harvests.delete(h.id); }}
+                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                            aria-label={t('stats.delete_harvest_btn')}
+                            title={t('stats.delete_harvest_btn')}
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -336,6 +447,11 @@ export default function StatisticsPage() {
       </div>
 
       <AddHarvestDialog open={showAddHarvest} onOpenChange={setShowAddHarvest} />
+      <EditHarvestDialog
+        harvest={editingHarvest}
+        open={!!editingHarvest}
+        onOpenChange={(o) => { if (!o) setEditingHarvest(null); }}
+      />
       <AnnualReportDialog year={currentYear} open={showReport} onOpenChange={setShowReport} />
     </div>
   );

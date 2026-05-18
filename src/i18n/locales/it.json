@@ -258,7 +258,14 @@
     "latest": "Ultime raccolte",
     "current_year_equiv": "{{year}} (equiv.)",
     "prev_year_equiv": "{{year}} (equiv.)",
-    "plant_removed": "Pianta rimossa"
+    "plant_removed": "Pianta rimossa",
+    "savings_title": "Risparmio autoproduzione — {{year}}",
+    "savings_year_total": "Totale anno",
+    "savings_per_plant": "Per pianta",
+    "savings_monthly": "Per mese",
+    "no_savings_data": "Aggiungi un prezzo alle raccolte per vedere il risparmio dell'autoproduzione.",
+    "edit_harvest_btn": "Modifica raccolta",
+    "delete_harvest_btn": "Elimina raccolta"
   },
   "weather": {
     "set_location": "Imposta la tua posizione nelle Impostazioni per vedere le previsioni meteo",
@@ -339,6 +346,9 @@
       "category": "Categoria *",
       "watering_label": "Irrigazione (giorni tra un'annaffiatura) *",
       "num_plants": "N. piante o semi",
+      "price": "Prezzo per piantina (€)",
+      "price_ph": "es. 0.50",
+      "total_est": "Totale stimato: € {{value}}",
       "planting_date": "Data semina/trapianto *",
       "location": "Posizione nell'orto *",
       "location_ph": "es. Aiuola Sud, Vaso balcone...",

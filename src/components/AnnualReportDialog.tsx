@@ -81,7 +81,7 @@ export default function AnnualReportDialog({ year, open, onOpenChange }: AnnualR
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-3xl max-h-[95vh] overflow-y-auto p-0 print:max-h-none print:max-w-none print:overflow-visible"
+        className="max-w-2xl max-h-[95vh] overflow-y-auto p-0 print:max-h-none print:max-w-none print:overflow-visible"
       >
         {/* Toolbar (nascosta in stampa) */}
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-3 flex items-center justify-between gap-2 print:hidden">
@@ -154,28 +154,30 @@ export default function AnnualReportDialog({ year, open, onOpenChange }: AnnualR
               <h3 className="font-bold text-sm uppercase tracking-wide text-garden-leaf mb-2">
                 {t('report.top_harvests')}
               </h3>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2">{t('report.plant')}</th>
-                    <th className="text-right py-2">{t('report.harvests_count')}</th>
-                    <th className="text-right py-2">{t('report.totals')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {harvestsByPlant.slice(0, 15).map(({ plant, total, count }) => (
-                    <tr key={plant.id} className="border-b">
-                      <td className="py-2">
-                        {CATEGORY_EMOJI[plant.category]} {plant.name}
-                      </td>
-                      <td className="text-right py-2">{count}</td>
-                      <td className="text-right py-2 text-gray-600">
-                        {Object.entries(total).map(([unit, q]) => `${q} ${unit}`).join(' · ')}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 pr-2">{t('report.plant')}</th>
+                      <th className="text-right py-2 px-2 whitespace-nowrap">{t('report.harvests_count')}</th>
+                      <th className="text-right py-2 pl-2">{t('report.totals')}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {harvestsByPlant.slice(0, 15).map(({ plant, total, count }) => (
+                      <tr key={plant.id} className="border-b">
+                        <td className="py-2 pr-2 break-words">
+                          {CATEGORY_EMOJI[plant.category]} {plant.name}
+                        </td>
+                        <td className="text-right py-2 px-2 whitespace-nowrap">{count}</td>
+                        <td className="text-right py-2 pl-2 text-gray-600 break-words">
+                          {Object.entries(total).map(([unit, q]) => `${q} ${unit}`).join(' · ')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </section>
           )}
 

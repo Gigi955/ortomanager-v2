@@ -61,6 +61,7 @@ export interface Plant {
   images?: string[]; // array di foto aggiuntive (base64)
   category: 'vegetables' | 'fruits' | 'herbs' | 'flowers' | 'trees';
   attachments?: Attachment[]; // file/link allegati alle note
+  price?: number; // prezzo unitario per piantina (EUR), opzionale
 }
 
 // Impostazioni dell'app
@@ -112,6 +113,7 @@ export interface Harvest {
   quantity: number;
   unit: string;
   notes?: string;
+  price?: number; // prezzo unitario (EUR/unita), opzionale per record legacy
 }
 
 export type JournalEventType =
@@ -342,6 +344,21 @@ class OrtoDatabase extends Dexie {
     // campo Plant.attachments è opzionale e non indicizzato, quindi gli stores
     // restano invariati. Il bump serve solo per coerenza di versione del DB.
     this.version(9).stores({
+      plantTypes: '++id, name, category',
+      plants: '++id, name, category, status, plantedDate, plantTypeId',
+      tasks: '++id, dueDate, category, priority, plantId',
+      recipes: '++id, title, difficulty, isFavorite',
+      harvests: '++id, plantId, date',
+      notes: '++id, date, plantId',
+      settings: '++id',
+      plantPhotos: '++id, plantId, date',
+      gardenLayout: '++id',
+    });
+
+    // Versione 10 - prezzo unitario sulle raccolte (Harvest.price) e sulle
+    // piantine (Plant.price). Entrambi opzionali e non indicizzati: gli stores
+    // restano invariati, bump solo per coerenza versione del DB.
+    this.version(10).stores({
       plantTypes: '++id, name, category',
       plants: '++id, name, category, status, plantedDate, plantTypeId',
       tasks: '++id, dueDate, category, priority, plantId',

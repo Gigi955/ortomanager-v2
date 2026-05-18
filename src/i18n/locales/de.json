@@ -258,7 +258,14 @@
     "latest": "Letzte Ernten",
     "current_year_equiv": "{{year}} (äquiv.)",
     "prev_year_equiv": "{{year}} (äquiv.)",
-    "plant_removed": "Pflanze entfernt"
+    "plant_removed": "Pflanze entfernt",
+    "savings_title": "Ersparnis Eigenanbau — {{year}}",
+    "savings_year_total": "Jahr gesamt",
+    "savings_per_plant": "Pro Pflanze",
+    "savings_monthly": "Pro Monat",
+    "no_savings_data": "Füge einen Preis zu den Ernten hinzu, um die Ersparnis zu sehen.",
+    "edit_harvest_btn": "Ernte bearbeiten",
+    "delete_harvest_btn": "Ernte löschen"
   },
   "weather": {
     "set_location": "Legen Sie Ihren Standort in den Einstellungen fest, um Wettervorhersagen zu sehen",
@@ -339,6 +346,9 @@
       "category": "Kategorie *",
       "watering_label": "Bewässerung (Tage zwischen Gießvorgängen) *",
       "num_plants": "Anzahl Pflanzen oder Samen",
+      "price": "Preis pro Setzling (€)",
+      "price_ph": "z.B. 0.50",
+      "total_est": "Geschätzte Gesamtkosten: € {{value}}",
       "planting_date": "Aussaat-/Umpflanzdatum *",
       "location": "Position im Garten *",
       "location_ph": "z.B. Südbeeet, Balkonkübel...",

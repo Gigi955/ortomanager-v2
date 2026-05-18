@@ -258,7 +258,14 @@
     "latest": "Latest harvests",
     "current_year_equiv": "{{year}} (equiv.)",
     "prev_year_equiv": "{{year}} (equiv.)",
-    "plant_removed": "Plant removed"
+    "plant_removed": "Plant removed",
+    "savings_title": "Self-production savings — {{year}}",
+    "savings_year_total": "Year total",
+    "savings_per_plant": "Per plant",
+    "savings_monthly": "Per month",
+    "no_savings_data": "Add a price to your harvests to see how much you saved with self-production.",
+    "edit_harvest_btn": "Edit harvest",
+    "delete_harvest_btn": "Delete harvest"
   },
   "weather": {
     "set_location": "Set your location in Settings to see weather forecasts",
@@ -339,6 +346,9 @@
       "category": "Category *",
       "watering_label": "Watering (days between waterings) *",
       "num_plants": "No. of plants or seeds",
+      "price": "Price per seedling (€)",
+      "price_ph": "e.g. 0.50",
+      "total_est": "Estimated total: € {{value}}",
       "planting_date": "Sowing/transplanting date *",
       "location": "Garden location *",
       "location_ph": "e.g. South bed, Balcony pot...",

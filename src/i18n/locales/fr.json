@@ -258,7 +258,14 @@
     "latest": "Dernières récoltes",
     "current_year_equiv": "{{year}} (équiv.)",
     "prev_year_equiv": "{{year}} (équiv.)",
-    "plant_removed": "Plante supprimée"
+    "plant_removed": "Plante supprimée",
+    "savings_title": "Économies autoproduction — {{year}}",
+    "savings_year_total": "Total année",
+    "savings_per_plant": "Par plante",
+    "savings_monthly": "Par mois",
+    "no_savings_data": "Ajoutez un prix à vos récoltes pour voir les économies de l'autoproduction.",
+    "edit_harvest_btn": "Modifier la récolte",
+    "delete_harvest_btn": "Supprimer la récolte"
   },
   "weather": {
     "set_location": "Définissez votre position dans les Paramètres pour voir les prévisions météo",
@@ -339,6 +346,9 @@
       "category": "Catégorie *",
       "watering_label": "Arrosage (jours entre arrosages) *",
       "num_plants": "Nbre de plantes ou graines",
+      "price": "Prix par plant (€)",
+      "price_ph": "ex. 0.50",
+      "total_est": "Total estimé : € {{value}}",
       "planting_date": "Date de semis/transplantation *",
       "location": "Position dans le jardin *",
       "location_ph": "ex. Plate-bande Sud, Pot balcon...",

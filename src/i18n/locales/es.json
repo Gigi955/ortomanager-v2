@@ -258,7 +258,14 @@
     "latest": "Últimas cosechas",
     "current_year_equiv": "{{year}} (equiv.)",
     "prev_year_equiv": "{{year}} (equiv.)",
-    "plant_removed": "Planta eliminada"
+    "plant_removed": "Planta eliminada",
+    "savings_title": "Ahorro autoproducción — {{year}}",
+    "savings_year_total": "Total año",
+    "savings_per_plant": "Por planta",
+    "savings_monthly": "Por mes",
+    "no_savings_data": "Añade un precio a tus cosechas para ver el ahorro de la autoproducción.",
+    "edit_harvest_btn": "Editar cosecha",
+    "delete_harvest_btn": "Eliminar cosecha"
   },
   "weather": {
     "set_location": "Establece tu ubicación en Ajustes para ver las previsiones",
@@ -339,6 +346,9 @@
       "category": "Categoría *",
       "watering_label": "Riego (días entre riegos) *",
       "num_plants": "Nº de plantas o semillas",
+      "price": "Precio por plantón (€)",
+      "price_ph": "ej. 0.50",
+      "total_est": "Total estimado: € {{value}}",
       "planting_date": "Fecha de siembra/trasplante *",
       "location": "Ubicación en el huerto *",
       "location_ph": "ej. Bancal sur, Maceta terraza...",
