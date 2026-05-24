@@ -323,6 +323,7 @@
     "invalid_file": "Archivo de backup no válido",
     "corrupt_file": "Archivo de backup corrupto o no válido",
     "import_success": "¡Datos restaurados con éxito! ✅",
+    "legacy_v1_imported": "Copia de seguridad antigua importada: solo se restauraron plantas, tareas, cosechas y notas. Las otras tablas (recetas, ajustes, fotos, mapa) no estaban en el archivo.",
     "import_error": "Error durante la restauración",
     "restoring": "Restaurando..."
   },

@@ -13,6 +13,27 @@ function isCapacitor() {
   return typeof (window as unknown as Record<string, unknown>).Capacitor !== 'undefined';
 }
 
+// Formato di backup corrente. v1 = solo plants/tasks/harvests/notes (bug storico).
+// v2 = tutte le 9 tabelle del DB.
+const BACKUP_FORMAT_VERSION = 2;
+
+// Helper: revives ISO date strings into Date objects on specified fields.
+function reviveDates<T extends Record<string, unknown>>(row: T, dateFields: string[]): T {
+  const out: Record<string, unknown> = { ...row };
+  for (const f of dateFields) {
+    if (out[f] != null) out[f] = new Date(out[f] as string);
+  }
+  // Revive nested dates in plants.attachments[].addedAt if present.
+  const attachments = (out as { attachments?: Array<Record<string, unknown>> }).attachments;
+  if (Array.isArray(attachments)) {
+    (out as { attachments: Array<Record<string, unknown>> }).attachments = attachments.map(a => ({
+      ...a,
+      addedAt: a.addedAt ? new Date(a.addedAt as string) : a.addedAt,
+    }));
+  }
+  return out as T;
+}
+
 export default function BackupRestoreCard() {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -20,18 +41,26 @@ export default function BackupRestoreCard() {
   const [isExporting, setIsExporting] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [pendingData, setPendingData] = useState<Record<string, unknown[]> | null>(null);
+  const [pendingVersion, setPendingVersion] = useState<number>(BACKUP_FORMAT_VERSION);
 
   const buildBackupJson = async () => {
-    const [plants, tasks, harvests, notes] = await Promise.all([
-      db.plants.toArray(),
-      db.tasks.toArray(),
-      db.harvests.toArray(),
-      db.notes.toArray(),
-    ]);
+    const [plantTypes, plants, tasks, recipes, harvests, notes, settings, plantPhotos, gardenLayout] =
+      await Promise.all([
+        db.plantTypes.toArray(),
+        db.plants.toArray(),
+        db.tasks.toArray(),
+        db.recipes.toArray(),
+        db.harvests.toArray(),
+        db.notes.toArray(),
+        db.settings.toArray(),
+        db.plantPhotos.toArray(),
+        db.gardenLayout.toArray(),
+      ]);
     return JSON.stringify({
-      version: 1,
+      version: BACKUP_FORMAT_VERSION,
       exportedAt: new Date().toISOString(),
-      data: { plants, tasks, harvests, notes },
+      appVersion: __APP_VERSION__,
+      data: { plantTypes, plants, tasks, recipes, harvests, notes, settings, plantPhotos, gardenLayout },
     }, null, 2);
   };
 
@@ -43,16 +72,18 @@ export default function BackupRestoreCard() {
       const filename = `ortomanager-backup-${date}.json`;
 
       if (isCapacitor()) {
+        // Cache directory è esposta correttamente via FileProvider per la Share API
+        // su Android 11+ (Documents può fallire con scoped storage).
         await Filesystem.writeFile({
           path: filename,
           data: json,
-          directory: Directory.Documents,
+          directory: Directory.Cache,
           encoding: Encoding.UTF8,
         });
 
         const uriResult = await Filesystem.getUri({
           path: filename,
-          directory: Directory.Documents,
+          directory: Directory.Cache,
         });
 
         await Share.share({
@@ -100,6 +131,7 @@ export default function BackupRestoreCard() {
           return;
         }
         setPendingData(parsed.data);
+        setPendingVersion(typeof parsed.version === 'number' ? parsed.version : 1);
         setShowRestoreConfirm(true);
       } catch {
         toast.error(t('backup.corrupt_file'));
@@ -113,49 +145,77 @@ export default function BackupRestoreCard() {
     if (!pendingData) return;
     setIsRestoring(true);
     try {
-      await db.transaction('rw', [db.plants, db.tasks, db.harvests, db.notes], async () => {
-        await db.plants.clear();
-        await db.tasks.clear();
-        await db.harvests.clear();
-        await db.notes.clear();
+      await db.transaction(
+        'rw',
+        [db.plantTypes, db.plants, db.tasks, db.recipes, db.harvests, db.notes, db.settings, db.plantPhotos, db.gardenLayout],
+        async () => {
+          // Tabelle senza campi Date.
+          if (pendingData.plantTypes?.length) {
+            await db.plantTypes.clear();
+            await db.plantTypes.bulkPut(pendingData.plantTypes as Parameters<typeof db.plantTypes.bulkPut>[0]);
+          }
+          if (pendingData.recipes?.length) {
+            await db.recipes.clear();
+            await db.recipes.bulkPut(pendingData.recipes as Parameters<typeof db.recipes.bulkPut>[0]);
+          }
+          if (pendingData.settings?.length) {
+            await db.settings.clear();
+            await db.settings.bulkPut(pendingData.settings as Parameters<typeof db.settings.bulkPut>[0]);
+          }
+          if (pendingData.gardenLayout?.length) {
+            await db.gardenLayout.clear();
+            await db.gardenLayout.bulkPut(pendingData.gardenLayout as Parameters<typeof db.gardenLayout.bulkPut>[0]);
+          }
 
-        if (pendingData.plants?.length) {
-          await db.plants.bulkPut(
-            (pendingData.plants as Record<string, unknown>[]).map(p => ({
-              ...p,
-              plantedDate: new Date(p.plantedDate as string),
-              lastWatered: p.lastWatered ? new Date(p.lastWatered as string) : undefined,
-            })) as Parameters<typeof db.plants.bulkPut>[0]
-          );
+          // Tabelle con campi Date — sempre clear+restore (anche v1).
+          if (pendingData.plants?.length) {
+            await db.plants.clear();
+            await db.plants.bulkPut(
+              (pendingData.plants as Record<string, unknown>[]).map(p =>
+                reviveDates(p, ['plantedDate', 'lastWatered'])
+              ) as Parameters<typeof db.plants.bulkPut>[0]
+            );
+          }
+          if (pendingData.tasks?.length) {
+            await db.tasks.clear();
+            await db.tasks.bulkPut(
+              (pendingData.tasks as Record<string, unknown>[]).map(r =>
+                reviveDates(r, ['dueDate', 'createdAt'])
+              ) as Parameters<typeof db.tasks.bulkPut>[0]
+            );
+          }
+          if (pendingData.harvests?.length) {
+            await db.harvests.clear();
+            await db.harvests.bulkPut(
+              (pendingData.harvests as Record<string, unknown>[]).map(r =>
+                reviveDates(r, ['date'])
+              ) as Parameters<typeof db.harvests.bulkPut>[0]
+            );
+          }
+          if (pendingData.notes?.length) {
+            await db.notes.clear();
+            await db.notes.bulkPut(
+              (pendingData.notes as Record<string, unknown>[]).map(r =>
+                reviveDates(r, ['date'])
+              ) as Parameters<typeof db.notes.bulkPut>[0]
+            );
+          }
+          if (pendingData.plantPhotos?.length) {
+            await db.plantPhotos.clear();
+            await db.plantPhotos.bulkPut(
+              (pendingData.plantPhotos as Record<string, unknown>[]).map(r =>
+                reviveDates(r, ['date'])
+              ) as Parameters<typeof db.plantPhotos.bulkPut>[0]
+            );
+          }
         }
-        if (pendingData.tasks?.length) {
-          await db.tasks.bulkPut(
-            (pendingData.tasks as Record<string, unknown>[]).map(t => ({
-              ...t,
-              dueDate: new Date(t.dueDate as string),
-              createdAt: new Date(t.createdAt as string),
-            })) as Parameters<typeof db.tasks.bulkPut>[0]
-          );
-        }
-        if (pendingData.harvests?.length) {
-          await db.harvests.bulkPut(
-            (pendingData.harvests as Record<string, unknown>[]).map(h => ({
-              ...h,
-              date: new Date(h.date as string),
-            })) as Parameters<typeof db.harvests.bulkPut>[0]
-          );
-        }
-        if (pendingData.notes?.length) {
-          await db.notes.bulkPut(
-            (pendingData.notes as Record<string, unknown>[]).map(n => ({
-              ...n,
-              date: new Date(n.date as string),
-            })) as Parameters<typeof db.notes.bulkPut>[0]
-          );
-        }
-      });
+      );
 
-      toast.success(t('backup.import_success'));
+      if (pendingVersion < BACKUP_FORMAT_VERSION) {
+        toast.success(t('backup.legacy_v1_imported'));
+      } else {
+        toast.success(t('backup.import_success'));
+      }
       setShowRestoreConfirm(false);
       setPendingData(null);
     } catch (err) {

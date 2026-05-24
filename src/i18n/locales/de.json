@@ -323,6 +323,7 @@
     "invalid_file": "Ungültige Sicherungsdatei",
     "corrupt_file": "Beschädigte oder ungültige Sicherungsdatei",
     "import_success": "Daten erfolgreich wiederhergestellt! ✅",
+    "legacy_v1_imported": "Altes Backup-Format importiert: Nur Pflanzen, Aufgaben, Ernten und Notizen wurden wiederhergestellt. Andere Tabellen (Rezepte, Einstellungen, Fotos, Gartenplan) waren nicht in der Datei.",
     "import_error": "Fehler bei der Wiederherstellung",
     "restoring": "Wiederherstellung..."
   },

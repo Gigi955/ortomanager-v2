@@ -323,6 +323,7 @@
     "invalid_file": "Fichier de sauvegarde invalide",
     "corrupt_file": "Fichier de sauvegarde corrompu ou invalide",
     "import_success": "Données restaurées avec succès! ✅",
+    "legacy_v1_imported": "Ancienne sauvegarde importée : seules plantes, tâches, récoltes et notes ont été restaurées. Les autres tables (recettes, paramètres, photos, plan) n'étaient pas dans le fichier.",
     "import_error": "Erreur lors de la restauration",
     "restoring": "Restauration..."
   },

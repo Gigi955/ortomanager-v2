@@ -323,6 +323,7 @@
     "invalid_file": "File di backup non valido",
     "corrupt_file": "File di backup corrotto o non valido",
     "import_success": "Dati ripristinati con successo! ✅",
+    "legacy_v1_imported": "Backup vecchio formato importato: ripristinati solo piante, task, raccolti e note. Le altre tabelle (ricette, impostazioni, foto, mappa orto) non erano presenti.",
     "import_error": "Errore durante il ripristino",
     "restoring": "Ripristino..."
   },

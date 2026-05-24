@@ -323,6 +323,7 @@
     "invalid_file": "Invalid backup file",
     "corrupt_file": "Corrupted or invalid backup file",
     "import_success": "Data restored successfully! ✅",
+    "legacy_v1_imported": "Old-format backup imported: only plants, tasks, harvests and notes restored. Other tables (recipes, settings, photos, garden map) were not in the file.",
     "import_error": "Error during restore",
     "restoring": "Restoring..."
   },
