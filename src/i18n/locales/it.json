@@ -196,6 +196,8 @@
     "journal_desc": "Annota osservazioni e eventi del tuo orto",
     "assistant_link": "Assistente AI",
     "assistant_desc": "Chat con Claude su consigli per il tuo orto",
+    "irrigation_link": "Irrigazione",
+    "irrigation_desc": "Tabella delle piante con frequenza e acqua",
     "language_title": "Lingua",
     "language_desc": "Scegli la lingua dell'app",
     "theme_title": "Aspetto",
@@ -616,5 +618,23 @@
     "success_save": "Foto aggiunta alla cronologia",
     "error_save": "Errore nel salvataggio",
     "error_image": "File non valido: deve essere un'immagine"
+  },
+  "irrigation": {
+    "title": "Irrigazione",
+    "subtitle": "Piante raggruppate per frequenza d'acqua",
+    "empty": "Non hai ancora piante. Aggiungine una dalla sezione 'Le mie piante'.",
+    "group_count_one": "{{count}} pianta",
+    "group_count_other": "{{count}} piante",
+    "group": {
+      "daily": "Ogni giorno",
+      "every_2_3": "Ogni 2-3 giorni",
+      "weekly": "Una volta a settimana",
+      "biweekly_or_more": "Ogni 2 settimane o più"
+    },
+    "col": {
+      "plant": "Pianta",
+      "frequency": "Ogni",
+      "water": "Acqua"
+    }
   }
 }

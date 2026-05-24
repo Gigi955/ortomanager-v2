@@ -196,6 +196,8 @@
     "journal_desc": "Registra observaciones y eventos de tu huerto",
     "assistant_link": "Asistente IA",
     "assistant_desc": "Chatea con Claude para consejos de huerto",
+    "irrigation_link": "Riego",
+    "irrigation_desc": "Tabla de plantas con frecuencia y cantidad de agua",
     "language_title": "Idioma",
     "language_desc": "Elige el idioma de la app",
     "theme_title": "Apariencia",
@@ -616,5 +618,23 @@
     "success_save": "Foto añadida a la cronología",
     "error_save": "Error al guardar",
     "error_image": "Archivo no válido: debe ser una imagen"
+  },
+  "irrigation": {
+    "title": "Riego",
+    "subtitle": "Plantas agrupadas por frecuencia de riego",
+    "empty": "Aún no tienes plantas. Añade una desde la sección 'Mis plantas'.",
+    "group_count_one": "{{count}} planta",
+    "group_count_other": "{{count}} plantas",
+    "group": {
+      "daily": "Cada día",
+      "every_2_3": "Cada 2-3 días",
+      "weekly": "Una vez por semana",
+      "biweekly_or_more": "Cada 2 semanas o más"
+    },
+    "col": {
+      "plant": "Planta",
+      "frequency": "Cada",
+      "water": "Agua"
+    }
   }
 }

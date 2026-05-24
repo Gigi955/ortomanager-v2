@@ -196,6 +196,8 @@
     "journal_desc": "Log observations and events from your garden",
     "assistant_link": "AI Assistant",
     "assistant_desc": "Chat with Claude for garden tips",
+    "irrigation_link": "Watering",
+    "irrigation_desc": "Plant table with frequency and water amount",
     "language_title": "Language",
     "language_desc": "Choose the app language",
     "theme_title": "Appearance",
@@ -616,5 +618,23 @@
     "success_save": "Photo added to timeline",
     "error_save": "Save error",
     "error_image": "Invalid file: must be an image"
+  },
+  "irrigation": {
+    "title": "Watering",
+    "subtitle": "Plants grouped by watering frequency",
+    "empty": "You don't have any plants yet. Add one from the 'My plants' section.",
+    "group_count_one": "{{count}} plant",
+    "group_count_other": "{{count}} plants",
+    "group": {
+      "daily": "Every day",
+      "every_2_3": "Every 2-3 days",
+      "weekly": "Once a week",
+      "biweekly_or_more": "Every 2 weeks or more"
+    },
+    "col": {
+      "plant": "Plant",
+      "frequency": "Every",
+      "water": "Water"
+    }
   }
 }

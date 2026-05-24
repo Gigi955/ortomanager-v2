@@ -196,6 +196,8 @@
     "journal_desc": "Beobachtungen und Ereignisse festhalten",
     "assistant_link": "KI-Assistent",
     "assistant_desc": "Chatte mit Claude für Garten-Tipps",
+    "irrigation_link": "Bewässerung",
+    "irrigation_desc": "Pflanzentabelle mit Häufigkeit und Wassermenge",
     "language_title": "Sprache",
     "language_desc": "Wählen Sie die App-Sprache",
     "theme_title": "Erscheinungsbild",
@@ -616,5 +618,23 @@
     "success_save": "Foto zur Chronik hinzugefügt",
     "error_save": "Speicherfehler",
     "error_image": "Ungültige Datei: muss ein Bild sein"
+  },
+  "irrigation": {
+    "title": "Bewässerung",
+    "subtitle": "Pflanzen nach Gießhäufigkeit gruppiert",
+    "empty": "Du hast noch keine Pflanzen. Füge eine im Bereich 'Meine Pflanzen' hinzu.",
+    "group_count_one": "{{count}} Pflanze",
+    "group_count_other": "{{count}} Pflanzen",
+    "group": {
+      "daily": "Täglich",
+      "every_2_3": "Alle 2-3 Tage",
+      "weekly": "Einmal pro Woche",
+      "biweekly_or_more": "Alle 2 Wochen oder mehr"
+    },
+    "col": {
+      "plant": "Pflanze",
+      "frequency": "Alle",
+      "water": "Wasser"
+    }
   }
 }

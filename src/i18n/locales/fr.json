@@ -196,6 +196,8 @@
     "journal_desc": "Notez observations et événements de votre potager",
     "assistant_link": "Assistant IA",
     "assistant_desc": "Discutez avec Claude pour des conseils de jardinage",
+    "irrigation_link": "Arrosage",
+    "irrigation_desc": "Tableau des plantes avec fréquence et quantité d'eau",
     "language_title": "Langue",
     "language_desc": "Choisissez la langue de l'application",
     "theme_title": "Apparence",
@@ -616,5 +618,23 @@
     "success_save": "Photo ajoutée à la chronologie",
     "error_save": "Erreur d'enregistrement",
     "error_image": "Fichier invalide : doit être une image"
+  },
+  "irrigation": {
+    "title": "Arrosage",
+    "subtitle": "Plantes regroupées par fréquence d'arrosage",
+    "empty": "Vous n'avez pas encore de plantes. Ajoutez-en une depuis 'Mes plantes'.",
+    "group_count_one": "{{count}} plante",
+    "group_count_other": "{{count}} plantes",
+    "group": {
+      "daily": "Chaque jour",
+      "every_2_3": "Tous les 2-3 jours",
+      "weekly": "Une fois par semaine",
+      "biweekly_or_more": "Toutes les 2 semaines ou plus"
+    },
+    "col": {
+      "plant": "Plante",
+      "frequency": "Tous les",
+      "water": "Eau"
+    }
   }
 }

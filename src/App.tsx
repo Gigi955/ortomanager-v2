@@ -17,6 +17,7 @@ import GuidePage from './pages/Guide';
 import GardenPage from './pages/Garden';
 import JournalPage from './pages/Journal';
 import AssistantPage from './pages/Assistant';
+import IrrigazionePage from './pages/Irrigazione';
 import BottomNav from './components/BottomNav';
 
 const queryClient = new QueryClient({
@@ -88,6 +89,7 @@ function AppContent() {
           <Route path="/mappa" element={<GardenPage />} />
           <Route path="/diario" element={<JournalPage />} />
           <Route path="/assistente" element={<AssistantPage />} />
+          <Route path="/irrigazione" element={<IrrigazionePage />} />
         </Routes>
         <BottomNav />
       </div>

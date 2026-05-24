@@ -21,6 +21,7 @@ import {
   Map as MapIcon,
   BookText,
   Bot as BotIcon,
+  Droplet,
   ChevronRight,
   Type,
   Bot,
@@ -191,6 +192,20 @@ export default function SettingsPage() {
             <div className="flex-1">
               <p className="font-semibold dark:text-white">{t('settings.stats_link')}</p>
               <p className="text-sm text-muted-foreground">{t('settings.stats_desc')}</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-400" />
+          </CardContent>
+        </Card>
+
+        {/* Link Irrigazione */}
+        <Card className="cursor-pointer hover:shadow-md transition-shadow dark:bg-gray-800 dark:border-gray-700" onClick={() => navigate('/irrigazione')}>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-garden-leaf/10 dark:bg-garden-leaf/20 flex items-center justify-center">
+              <Droplet className="w-5 h-5 text-garden-leaf" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold dark:text-white">{t('settings.irrigation_link')}</p>
+              <p className="text-sm text-muted-foreground">{t('settings.irrigation_desc')}</p>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-400" />
           </CardContent>
