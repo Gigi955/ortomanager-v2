@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { db } from '@/lib/db';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, AlertTriangle, Share2, Save } from 'lucide-react';
+import { Download, Upload, AlertTriangle, Share2, Save, Clipboard } from 'lucide-react';
 import { toast } from 'sonner';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -92,33 +92,33 @@ export default function BackupRestoreCard() {
       const filename = `ortomanager-backup-${date}.json`;
 
       if (isCapacitor()) {
-        // Directory.Documents su Android mappa a getExternalFilesDir(DIRECTORY_DOCUMENTS)
-        // che è visibile dal File Manager dell'utente alla cartella
-        // /Android/data/it.ortomanager.app/files/Documents/ (Android 11+) o
-        // /storage/emulated/0/Documents/ (vecchi Android). Non serve Share API.
+        // Directory.External mappa a getExternalFilesDir(null) =
+        // /storage/emulated/0/Android/data/it.ortomanager.app/files/
+        // cartella app-private, NON richiede permessi runtime su nessuna versione Android.
+        // (Directory.Documents mappa invece a cartella shared /Documents/ che richiede
+        // scoped storage permission e provoca crash nativo su Android 10+.)
         try {
           await withTimeout(
             Filesystem.writeFile({
               path: filename,
               data: json,
-              directory: Directory.Documents,
+              directory: Directory.External,
               encoding: Encoding.UTF8,
-              recursive: true,
             }),
             15000,
-            'writeFile Documents'
+            'writeFile External'
           );
         } catch (err) {
           toast.error(t('backup.export_error_detail', { message: (err as Error).message }), { duration: 8000 });
-          console.error('[backup] writeFile Documents failed', err);
+          console.error('[backup] writeFile External failed', err);
           return;
         }
 
-        let displayPath = `Documents/${filename}`;
+        let displayPath = `Android/data/it.ortomanager.app/files/${filename}`;
         try {
           const uriResult = await Filesystem.getUri({
             path: filename,
-            directory: Directory.Documents,
+            directory: Directory.External,
           });
           displayPath = uriResult.uri.replace(/^file:\/\//, '');
         } catch { /* path display fallback già impostato */ }
@@ -209,6 +209,52 @@ export default function BackupRestoreCard() {
           toast.error(t('backup.export_error_detail', { message: `share: ${msg}` }), { duration: 8000 });
           console.error('[backup] Share.share failed', err);
         }
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // ── FALLBACK ULTIMO: copia il JSON intero negli appunti del sistema.
+  // Niente plugin nativi, funziona sempre. L'utente incolla in WhatsApp/Note/email.
+  const handleCopyBackup = async () => {
+    setIsExporting(true);
+    try {
+      let json: string;
+      try {
+        json = await buildBackupJson();
+      } catch (err) {
+        toast.error(t('backup.copy_error', { message: (err as Error).message }));
+        return;
+      }
+
+      // Strada 1: Clipboard API moderna (richiede HTTPS o WebView Capacitor).
+      try {
+        await navigator.clipboard.writeText(json);
+        toast.success(t('backup.copy_success'), { duration: 10000 });
+        return;
+      } catch {
+        // Fallthrough al metodo legacy.
+      }
+
+      // Strada 2: textarea + execCommand (deprecato ma funziona in WebView vecchie).
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = json;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) {
+          toast.success(t('backup.copy_success'), { duration: 10000 });
+        } else {
+          toast.error(t('backup.copy_error', { message: 'execCommand returned false' }));
+        }
+      } catch (err) {
+        toast.error(t('backup.copy_error', { message: (err as Error).message }));
+        console.error('[backup] copy fallback failed', err);
       }
     } finally {
       setIsExporting(false);
@@ -394,6 +440,15 @@ export default function BackupRestoreCard() {
             >
               <Upload className="w-4 h-4 mr-2" />
               {t('backup.import')}
+            </Button>
+            <Button
+              onClick={handleCopyBackup}
+              className="w-full"
+              variant="outline"
+              disabled={isExporting}
+            >
+              <Clipboard className="w-4 h-4 mr-2" />
+              {t('backup.copy_to_clipboard')}
             </Button>
             <p className="text-xs text-muted-foreground">
               {isCapacitor() ? t('backup.export_hint_cap') : t('backup.export_hint_web')}
