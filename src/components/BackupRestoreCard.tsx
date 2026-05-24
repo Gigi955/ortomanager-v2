@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { db } from '@/lib/db';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, AlertTriangle, Share2 } from 'lucide-react';
+import { Download, Upload, AlertTriangle, Share2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -64,37 +64,69 @@ export default function BackupRestoreCard() {
     }, null, 2);
   };
 
-  const handleBackup = async () => {
+  // Promise.race timeout wrapper — protegge dai deadlock silenziosi di Capacitor
+  // su alcuni device Android.
+  function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout ${label} (>${ms / 1000}s)`)), ms)
+      ),
+    ]);
+  }
+
+  // ── PRIMARIO: salva il file in cartella visibile dal File Manager. Niente Share API.
+  // Approccio "safe path" che funziona indipendentemente da FileProvider e plugin Share.
+  const handleSaveToDevice = async () => {
     setIsExporting(true);
     try {
-      const json = await buildBackupJson();
+      let json: string;
+      try {
+        json = await buildBackupJson();
+      } catch (err) {
+        toast.error(t('backup.export_error_detail', { message: (err as Error).message }));
+        console.error('[backup] buildBackupJson failed', err);
+        return;
+      }
       const date = new Date().toISOString().slice(0, 10);
       const filename = `ortomanager-backup-${date}.json`;
 
       if (isCapacitor()) {
-        // Cache directory è esposta correttamente via FileProvider per la Share API
-        // su Android 11+ (Documents può fallire con scoped storage).
-        await Filesystem.writeFile({
-          path: filename,
-          data: json,
-          directory: Directory.Cache,
-          encoding: Encoding.UTF8,
-        });
+        // Directory.Documents su Android mappa a getExternalFilesDir(DIRECTORY_DOCUMENTS)
+        // che è visibile dal File Manager dell'utente alla cartella
+        // /Android/data/it.ortomanager.app/files/Documents/ (Android 11+) o
+        // /storage/emulated/0/Documents/ (vecchi Android). Non serve Share API.
+        try {
+          await withTimeout(
+            Filesystem.writeFile({
+              path: filename,
+              data: json,
+              directory: Directory.Documents,
+              encoding: Encoding.UTF8,
+              recursive: true,
+            }),
+            15000,
+            'writeFile Documents'
+          );
+        } catch (err) {
+          toast.error(t('backup.export_error_detail', { message: (err as Error).message }), { duration: 8000 });
+          console.error('[backup] writeFile Documents failed', err);
+          return;
+        }
 
-        const uriResult = await Filesystem.getUri({
-          path: filename,
-          directory: Directory.Cache,
-        });
+        let displayPath = `Documents/${filename}`;
+        try {
+          const uriResult = await Filesystem.getUri({
+            path: filename,
+            directory: Directory.Documents,
+          });
+          displayPath = uriResult.uri.replace(/^file:\/\//, '');
+        } catch { /* path display fallback già impostato */ }
 
-        await Share.share({
-          title: 'OrtoManager Backup',
-          text: `Backup OrtoManager del ${date}`,
-          url: uriResult.uri,
-          dialogTitle: 'Salva o condividi il backup',
-        });
-
-        toast.success(t('backup.export_success_cap', { filename }));
+        toast.success(t('backup.save_success_path', { path: displayPath }), { duration: 10000 });
+        toast.info(t('backup.save_hint'), { duration: 8000 });
       } else {
+        // Web: download tramite blob anchor
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -106,12 +138,77 @@ export default function BackupRestoreCard() {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         toast.success(t('backup.export_success_web'));
       }
-    } catch (err) {
-      if (err instanceof Error && (err.message.includes('cancel') || err.message.includes('abort'))) {
-        toast.info(t('backup.share_cancelled'));
-      } else {
-        toast.error(t('backup.export_error'));
-        console.error(err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // ── SECONDARIO: tenta la Share API. Comodo quando funziona, ma può fallire.
+  const handleShareBackup = async () => {
+    setIsExporting(true);
+    try {
+      const json = await buildBackupJson();
+      const date = new Date().toISOString().slice(0, 10);
+      const filename = `ortomanager-backup-${date}.json`;
+
+      if (!isCapacitor()) {
+        // In web il comportamento è lo stesso del salvataggio
+        await handleSaveToDevice();
+        return;
+      }
+
+      try {
+        await withTimeout(
+          Filesystem.writeFile({
+            path: filename,
+            data: json,
+            directory: Directory.Cache,
+            encoding: Encoding.UTF8,
+          }),
+          15000,
+          'writeFile Cache'
+        );
+      } catch (err) {
+        toast.error(t('backup.export_error_detail', { message: `writeFile: ${(err as Error).message}` }), { duration: 8000 });
+        console.error('[backup] share/writeFile failed', err);
+        return;
+      }
+
+      let uri: string;
+      try {
+        const uriResult = await Filesystem.getUri({
+          path: filename,
+          directory: Directory.Cache,
+        });
+        uri = uriResult.uri;
+      } catch (err) {
+        toast.error(t('backup.export_error_detail', { message: `getUri: ${(err as Error).message}` }), { duration: 8000 });
+        console.error('[backup] share/getUri failed', err);
+        return;
+      }
+
+      try {
+        await withTimeout(
+          Share.share({
+            title: 'OrtoManager Backup',
+            text: `Backup OrtoManager del ${date}`,
+            url: uri,
+            dialogTitle: 'Salva o condividi il backup',
+          }),
+          20000,
+          'Share.share'
+        );
+        toast.success(t('backup.export_success_cap', { filename }));
+      } catch (err) {
+        const msg = (err as Error).message || '';
+        if (msg.includes('cancel') || msg.includes('abort')) {
+          toast.info(t('backup.share_cancelled'));
+        } else if (msg.startsWith('Timeout')) {
+          toast.error(t('backup.timeout'), { duration: 10000 });
+        } else {
+          toast.error(t('backup.export_error_detail', { message: `share: ${msg}` }), { duration: 8000 });
+          console.error('[backup] Share.share failed', err);
+        }
       }
     } finally {
       setIsExporting(false);
@@ -280,13 +377,16 @@ export default function BackupRestoreCard() {
           </div>
         ) : (
           <>
-            <Button onClick={handleBackup} className="w-full" variant="default" disabled={isExporting}>
-              {isCapacitor()
-                ? <Share2 className="w-4 h-4 mr-2" />
-                : <Download className="w-4 h-4 mr-2" />
-              }
-              {isExporting ? t('backup.preparing') : isCapacitor() ? t('backup.export_cap') : t('backup.export_web')}
+            <Button onClick={handleSaveToDevice} className="w-full" variant="default" disabled={isExporting}>
+              <Save className="w-4 h-4 mr-2" />
+              {isExporting ? t('backup.preparing') : t('backup.save_to_device')}
             </Button>
+            {isCapacitor() && (
+              <Button onClick={handleShareBackup} className="w-full" variant="secondary" disabled={isExporting}>
+                <Share2 className="w-4 h-4 mr-2" />
+                {t('backup.export_share_btn')}
+              </Button>
+            )}
             <Button
               onClick={() => fileInputRef.current?.click()}
               className="w-full"

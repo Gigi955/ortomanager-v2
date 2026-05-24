@@ -5,7 +5,7 @@ import {
   Home, Leaf, Calendar, ChefHat, BarChart2, Settings,
   Plus, Search, Camera, Stethoscope, CheckCircle2,
   Bell, Sun, Download, Bot, MapPin, BookOpen,
-  Circle, Trash2, Heart, Pencil, Star,
+  Circle, Trash2, Heart, Pencil, Star, Droplet,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -263,6 +263,45 @@ export default function GuidePage() {
           </div>
 
           <TipBox>Le ricette di stagione compaiono anche nella Home per ispirarti ogni giorno.</TipBox>
+        </div>
+      ),
+    },
+    {
+      id: 'irrigazione',
+      icon: <Droplet className="w-5 h-5" />,
+      title: t('guide.irrigation_title'),
+      subtitle: t('guide.irrigation_desc'),
+      color: 'text-blue-500',
+      content: (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            La sezione Irrigazione mostra una tabella di tutte le tue piante raggruppate per frequenza di irrigazione, con la stima dell&apos;acqua necessaria per ognuna.
+          </p>
+
+          <div>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Come aprirla</p>
+            <Step num={1} text="Tocca 'Altro' nella barra di navigazione in basso" />
+            <Step num={2} text="Tocca la voce 'Irrigazione' (icona goccia blu)" />
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Cosa vedi</p>
+            <BulletItem icon={<Droplet className="w-3.5 h-3.5" />} text="Piante divise in 4 gruppi: Ogni giorno, Ogni 2-3 giorni, Una volta a settimana, Ogni 2 settimane o più." />
+            <BulletItem text="Per ogni pianta: nome, varietà, ubicazione, ogni quanti giorni irrigarla, quantità d'acqua stimata totale." />
+            <BulletItem text="I gruppi vuoti non vengono mostrati: vedi solo le fasce di frequenza che hai effettivamente." />
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Come è calcolata l&apos;acqua</p>
+            <BulletItem text="Erbe (basilico, prezzemolo, rosmarino...): 200 ml a pianta" />
+            <BulletItem text="Fiori (calendula, nasturzio, girasole...): 300 ml a pianta" />
+            <BulletItem text="Ortaggi (pomodoro, zucchina, lattuga...): 500 ml a pianta" />
+            <BulletItem text="Frutti (fragola, lampone, mirtillo...): 1 L a pianta" />
+            <BulletItem text="Alberi (olivo, melo, fico...): 5 L a pianta" />
+            <BulletItem text="Il totale è moltiplicato per il N. di piante (es. 3 pomodori = 1,5 L)." />
+          </div>
+
+          <TipBox>La quantità è solo una stima orientativa. Regolala in base al clima, al terreno e alla stagione: in estate aumenta, in inverno riduci.</TipBox>
         </div>
       ),
     },
