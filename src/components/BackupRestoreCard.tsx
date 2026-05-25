@@ -49,6 +49,53 @@ export default function BackupRestoreCard() {
 
   // ─── BUILD PAYLOAD ─────────────────────────────────────────────────────────
   // Niente pretty-print (null,2): risparmia ~30% memoria sulla stringa.
+  // CRITICO: il file dati NON deve contenere base64 (foto piante in
+  // plants.imageUrl/images/attachments + tabella plantPhotos), altrimenti
+  // JSON.stringify alloca centinaia di MB e fa crashare il WebView (OOM).
+  // Tutto il base64 va nel file "foto" separato.
+
+  type PlantMedia = {
+    plantId: number;
+    imageUrl?: string;
+    images?: string[];
+    attachments?: unknown[];
+  };
+
+  // Restituisce { plantsStripped, plantMedia } per separare i plain text dal base64.
+  function splitPlantsMedia(plants: Array<Record<string, unknown>>) {
+    const plantsStripped: Array<Record<string, unknown>> = [];
+    const plantMedia: PlantMedia[] = [];
+    for (const p of plants) {
+      const id = p.id as number | undefined;
+      const imageUrl = p.imageUrl as string | undefined;
+      const images = p.images as string[] | undefined;
+      const attachments = p.attachments as Array<Record<string, unknown>> | undefined;
+
+      const imageUrlIsBase64 = typeof imageUrl === 'string' && imageUrl.startsWith('data:');
+      const fileAttachments = attachments?.filter(a => a.type === 'file') ?? [];
+      const linkAttachments = attachments?.filter(a => a.type === 'link') ?? [];
+      const hasMedia = imageUrlIsBase64 || (images && images.length > 0) || fileAttachments.length > 0;
+
+      // Plant senza base64 (link-attachments restano nel file dati: sono testo).
+      const stripped: Record<string, unknown> = {
+        ...p,
+        imageUrl: imageUrlIsBase64 ? undefined : imageUrl,
+        images: undefined,
+        attachments: linkAttachments.length > 0 ? linkAttachments : undefined,
+      };
+      plantsStripped.push(stripped);
+
+      if (hasMedia && id != null) {
+        plantMedia.push({
+          plantId: id,
+          imageUrl: imageUrlIsBase64 ? imageUrl : undefined,
+          images,
+          attachments: fileAttachments.length > 0 ? fileAttachments : undefined,
+        });
+      }
+    }
+    return { plantsStripped, plantMedia };
+  }
 
   const buildDataJson = async () => {
     const [plantTypes, plants, tasks, recipes, harvests, notes, settings, gardenLayout] =
@@ -62,27 +109,79 @@ export default function BackupRestoreCard() {
         db.settings.toArray(),
         db.gardenLayout.toArray(),
       ]);
+    const { plantsStripped } = splitPlantsMedia(plants as Array<Record<string, unknown>>);
     return JSON.stringify({
       version: BACKUP_FORMAT_VERSION,
       kind: 'data',
       exportedAt: new Date().toISOString(),
       appVersion: __APP_VERSION__,
-      data: { plantTypes, plants, tasks, recipes, harvests, notes, settings, gardenLayout },
+      data: { plantTypes, plants: plantsStripped, tasks, recipes, harvests, notes, settings, gardenLayout },
     });
   };
 
-  const buildPhotosJson = async () => {
-    const plantPhotos = await db.plantPhotos.toArray();
-    return {
-      json: JSON.stringify({
+  // Scrive il file foto su disco in modo INCREMENTALE: la stringa più grande
+  // mai esistente in heap è una singola foto, non l'intero array. Evita l'OOM
+  // del WebView (visto fino a 277MB richiesti su backup di un utente reale).
+  // Su web (senza Capacitor) cade nel branch monolitico — i browser desktop
+  // hanno heap ampi e Filesystem non è disponibile.
+  const writePhotosChunked = async (filename: string): Promise<{ count: number }> => {
+    const [plantPhotos, plants] = await Promise.all([
+      db.plantPhotos.toArray(),
+      db.plants.toArray(),
+    ]);
+    const { plantMedia } = splitPlantsMedia(plants as Array<Record<string, unknown>>);
+    const total = plantPhotos.length + plantMedia.length;
+
+    if (!isCapacitor()) {
+      const json = JSON.stringify({
         version: BACKUP_FORMAT_VERSION,
         kind: 'photos',
         exportedAt: new Date().toISOString(),
         appVersion: __APP_VERSION__,
-        data: { plantPhotos },
+        data: { plantPhotos, plantMedia },
+      });
+      triggerDownload(filename, json);
+      return { count: total };
+    }
+
+    // header (rimuovo l'array di chiusura, lo costruisco a mano)
+    const header = `{"version":${BACKUP_FORMAT_VERSION},"kind":"photos","exportedAt":${JSON.stringify(new Date().toISOString())},"appVersion":${JSON.stringify(__APP_VERSION__)},"data":{"plantPhotos":[`;
+    await withTimeout(
+      Filesystem.writeFile({
+        path: filename,
+        data: header,
+        directory: Directory.Cache,
+        encoding: Encoding.UTF8,
       }),
-      count: plantPhotos.length,
+      30000,
+      `writeFile header ${filename}`
+    );
+
+    const append = async (chunk: string) => {
+      await withTimeout(
+        Filesystem.appendFile({
+          path: filename,
+          data: chunk,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        }),
+        30000,
+        `appendFile ${filename}`
+      );
     };
+
+    for (let i = 0; i < plantPhotos.length; i++) {
+      const sep = i > 0 ? ',' : '';
+      await append(sep + JSON.stringify(plantPhotos[i]));
+    }
+    await append('],"plantMedia":[');
+    for (let i = 0; i < plantMedia.length; i++) {
+      const sep = i > 0 ? ',' : '';
+      await append(sep + JSON.stringify(plantMedia[i]));
+    }
+    await append(']}}');
+
+    return { count: total };
   };
 
   // Promise.race timeout — protegge dai deadlock silenziosi di Capacitor.
@@ -153,51 +252,76 @@ export default function BackupRestoreCard() {
         } catch (err) {
           const msg = (err as Error).message || '';
           if (msg.includes('cancel') || msg.includes('abort')) {
+            // Annullato dall'utente: il file è già salvato in Cache, quindi
+            // potrebbe averlo salvato comunque (alcune destinazioni Android
+            // segnalano "cancel" anche dopo aver salvato). Andiamo avanti con
+            // le foto, l'utente può sempre annullare anche il prossimo dialog.
             toast.info(t('backup.share_cancelled'));
+          } else {
+            toast.error(t('backup.export_error_detail', { message: msg }), { duration: 8000 });
+            console.error('[backup] data share failed', err);
             return;
           }
-          toast.error(t('backup.export_error_detail', { message: msg }), { duration: 8000 });
-          console.error('[backup] data share failed', err);
-          return;
         }
       }
 
       // libera la memoria della stringa dati prima di costruire quella delle foto
       dataJson = '';
 
-      // 2) FILE FOTO (solo se presenti)
-      let photosResult: { json: string; count: number };
-      try {
-        photosResult = await buildPhotosJson();
-      } catch (err) {
-        toast.error(t('backup.export_error_detail', { message: (err as Error).message }));
-        console.error('[backup] buildPhotosJson failed', err);
-        return;
-      }
-
-      if (photosResult.count === 0) {
-        toast.success(t('backup.data_only_done'), { duration: 8000 });
-        return;
-      }
-
+      // 2) FILE FOTO (write incrementale, una foto alla volta).
       const photosFilename = `ortomanager-foto-${date}.json`;
+      let photosCount: number;
+      try {
+        const result = await writePhotosChunked(photosFilename);
+        photosCount = result.count;
+      } catch (err) {
+        toast.error(t('backup.export_error_detail', { message: (err as Error).message }), { duration: 8000 });
+        console.error('[backup] writePhotosChunked failed', err);
+        return;
+      }
+
+      if (photosCount === 0) {
+        toast.success(t('backup.data_only_done'), { duration: 8000 });
+        // pulisci eventuale file vuoto creato in cache
+        if (isCapacitor()) {
+          try {
+            await Filesystem.deleteFile({ path: photosFilename, directory: Directory.Cache });
+          } catch { /* ignora */ }
+        }
+        return;
+      }
 
       if (!isCapacitor()) {
-        triggerDownload(photosFilename, photosResult.json);
-        toast.success(t('backup.photos_done_web', { count: photosResult.count }));
-      } else {
-        toast.info(t('backup.photos_next', { count: photosResult.count }), { duration: 5000 });
-        try {
-          await writeAndShare(photosFilename, photosResult.json, t('backup.dialog_title_photos'));
-          toast.success(t('backup.photos_done', { count: photosResult.count }));
-        } catch (err) {
-          const msg = (err as Error).message || '';
-          if (msg.includes('cancel') || msg.includes('abort')) {
-            toast.info(t('backup.photos_share_cancelled'));
-          } else {
-            toast.error(t('backup.export_error_detail', { message: msg }), { duration: 8000 });
-            console.error('[backup] photos share failed', err);
-          }
+        // su web il download è già partito dentro writePhotosChunked
+        toast.success(t('backup.photos_done_web', { count: photosCount }));
+        return;
+      }
+
+      // Capacitor: il file foto è in Cache, ora apri lo Share dialog.
+      toast.info(t('backup.photos_next', { count: photosCount }), { duration: 5000 });
+      try {
+        const uriResult = await Filesystem.getUri({
+          path: photosFilename,
+          directory: Directory.Cache,
+        });
+        await withTimeout(
+          Share.share({
+            title: 'OrtoManager Backup',
+            text: photosFilename,
+            url: uriResult.uri,
+            dialogTitle: t('backup.dialog_title_photos'),
+          }),
+          60000,
+          `Share ${photosFilename}`
+        );
+        toast.success(t('backup.photos_done', { count: photosCount }));
+      } catch (err) {
+        const msg = (err as Error).message || '';
+        if (msg.includes('cancel') || msg.includes('abort')) {
+          toast.info(t('backup.photos_share_cancelled'));
+        } else {
+          toast.error(t('backup.export_error_detail', { message: msg }), { duration: 8000 });
+          console.error('[backup] photos share failed', err);
         }
       }
     } finally {
@@ -293,8 +417,10 @@ export default function BackupRestoreCard() {
       const d = pending.data;
 
       if (pending.kind === 'photos') {
-        // Solo foto: clear + restore plantPhotos. NON tocca le altre tabelle.
-        await db.transaction('rw', db.plantPhotos, async () => {
+        // Solo foto: ripristina plantPhotos + reinserisce plantMedia nelle plants.
+        // NON tocca i dati testuali delle plants (name, location, ecc.).
+        let mediaApplied = 0;
+        await db.transaction('rw', [db.plantPhotos, db.plants], async () => {
           await db.plantPhotos.clear();
           if (d.plantPhotos?.length) {
             await db.plantPhotos.bulkPut(
@@ -303,8 +429,31 @@ export default function BackupRestoreCard() {
               ) as Parameters<typeof db.plantPhotos.bulkPut>[0]
             );
           }
+          // plantMedia (v3+): rimetti imageUrl/images/attachments nei plants esistenti.
+          const media = (d.plantMedia as PlantMedia[] | undefined) ?? [];
+          for (const m of media) {
+            const existing = await db.plants.get(m.plantId);
+            if (!existing) continue;
+            const updated: Record<string, unknown> = { ...existing };
+            if (m.imageUrl) updated.imageUrl = m.imageUrl;
+            if (m.images) updated.images = m.images;
+            if (m.attachments) {
+              // merge: tieni link esistenti + file dal backup
+              const linkExisting = (existing.attachments ?? []).filter(a => a.type === 'link');
+              const fileFromBackup = (m.attachments as Array<Record<string, unknown>>).map(a =>
+                reviveDates(a, ['addedAt'])
+              );
+              updated.attachments = [...linkExisting, ...fileFromBackup];
+            }
+            await db.plants.put(updated as Parameters<typeof db.plants.put>[0]);
+            mediaApplied++;
+          }
         });
-        toast.success(t('backup.import_photos_success', { count: d.plantPhotos?.length ?? 0 }));
+        toast.success(
+          t('backup.import_photos_success', {
+            count: (d.plantPhotos?.length ?? 0) + mediaApplied,
+          })
+        );
       } else {
         // Dati: ripristina tutte le tabelle presenti tranne plantPhotos.
         // Per i backup v2 (che includono plantPhotos) le foto restano ripristinate
@@ -330,11 +479,46 @@ export default function BackupRestoreCard() {
               await db.gardenLayout.bulkPut(d.gardenLayout as Parameters<typeof db.gardenLayout.bulkPut>[0]);
             }
             if (d.plants?.length) {
+              // Merge: il file dati v3 NON contiene base64 (imageUrl-data, images, attachments-file).
+              // Per non perdere le foto già presenti, preserviamo i campi media
+              // dalle plants esistenti prima del clear.
+              const existingMedia = new Map<number, {
+                imageUrl?: string;
+                images?: string[];
+                attachments?: Array<Record<string, unknown>>;
+              }>();
+              if (pending.version >= 3) {
+                const existingPlants = await db.plants.toArray();
+                for (const ep of existingPlants) {
+                  if (ep.id == null) continue;
+                  const imageUrlIsBase64 = typeof ep.imageUrl === 'string' && ep.imageUrl.startsWith('data:');
+                  const fileAtt = ep.attachments?.filter(a => a.type === 'file');
+                  if (imageUrlIsBase64 || (ep.images && ep.images.length > 0) || (fileAtt && fileAtt.length > 0)) {
+                    existingMedia.set(ep.id, {
+                      imageUrl: imageUrlIsBase64 ? ep.imageUrl : undefined,
+                      images: ep.images,
+                      attachments: fileAtt as Array<Record<string, unknown>> | undefined,
+                    });
+                  }
+                }
+              }
               await db.plants.clear();
               await db.plants.bulkPut(
-                (d.plants as Record<string, unknown>[]).map(p =>
-                  reviveDates(p, ['plantedDate', 'lastWatered'])
-                ) as Parameters<typeof db.plants.bulkPut>[0]
+                (d.plants as Record<string, unknown>[]).map(p => {
+                  const revived = reviveDates(p, ['plantedDate', 'lastWatered']);
+                  const id = revived.id as number | undefined;
+                  if (id == null) return revived;
+                  const media = existingMedia.get(id);
+                  if (!media) return revived;
+                  const linkAttachments = (revived.attachments as Array<Record<string, unknown>> | undefined) ?? [];
+                  const merged: Record<string, unknown> = { ...revived };
+                  if (!merged.imageUrl && media.imageUrl) merged.imageUrl = media.imageUrl;
+                  if (!merged.images && media.images) merged.images = media.images;
+                  if (media.attachments && media.attachments.length > 0) {
+                    merged.attachments = [...linkAttachments, ...media.attachments];
+                  }
+                  return merged;
+                }) as Parameters<typeof db.plants.bulkPut>[0]
               );
             }
             if (d.tasks?.length) {
@@ -397,7 +581,9 @@ export default function BackupRestoreCard() {
   const plantsCount = (pending?.data.plants as unknown[])?.length ?? 0;
   const tasksCount = (pending?.data.tasks as unknown[])?.length ?? 0;
   const harvestsCount = (pending?.data.harvests as unknown[])?.length ?? 0;
-  const photosCount = (pending?.data.plantPhotos as unknown[])?.length ?? 0;
+  const photosCount =
+    ((pending?.data.plantPhotos as unknown[])?.length ?? 0) +
+    ((pending?.data.plantMedia as unknown[])?.length ?? 0);
   const isPhotosFile = pending?.kind === 'photos';
 
   return (
