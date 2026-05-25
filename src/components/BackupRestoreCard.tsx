@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { db } from '@/lib/db';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, Upload, AlertTriangle, Share2, Save, Clipboard } from 'lucide-react';
+import { Download, Upload, AlertTriangle, Share2, Clipboard } from 'lucide-react';
 import { toast } from 'sonner';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -13,17 +13,16 @@ function isCapacitor() {
   return typeof (window as unknown as Record<string, unknown>).Capacitor !== 'undefined';
 }
 
-// Formato di backup corrente. v1 = solo plants/tasks/harvests/notes (bug storico).
-// v2 = tutte le 9 tabelle del DB.
-const BACKUP_FORMAT_VERSION = 2;
+// v1 = solo plants/tasks/harvests/notes (bug storico).
+// v2 = tutte le 9 tabelle in un unico file (crash WebView su Android con molte foto base64).
+// v3 = backup splittato. kind: 'data' (8 tabelle senza foto) | 'photos' (solo plantPhotos).
+const BACKUP_FORMAT_VERSION = 3;
 
-// Helper: revives ISO date strings into Date objects on specified fields.
 function reviveDates<T extends Record<string, unknown>>(row: T, dateFields: string[]): T {
   const out: Record<string, unknown> = { ...row };
   for (const f of dateFields) {
     if (out[f] != null) out[f] = new Date(out[f] as string);
   }
-  // Revive nested dates in plants.attachments[].addedAt if present.
   const attachments = (out as { attachments?: Array<Record<string, unknown>> }).attachments;
   if (Array.isArray(attachments)) {
     (out as { attachments: Array<Record<string, unknown>> }).attachments = attachments.map(a => ({
@@ -34,17 +33,25 @@ function reviveDates<T extends Record<string, unknown>>(row: T, dateFields: stri
   return out as T;
 }
 
+type ParsedBackup = {
+  version: number;
+  kind?: 'data' | 'photos';
+  data: Record<string, unknown[]>;
+};
+
 export default function BackupRestoreCard() {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
-  const [pendingData, setPendingData] = useState<Record<string, unknown[]> | null>(null);
-  const [pendingVersion, setPendingVersion] = useState<number>(BACKUP_FORMAT_VERSION);
+  const [pending, setPending] = useState<ParsedBackup | null>(null);
 
-  const buildBackupJson = async () => {
-    const [plantTypes, plants, tasks, recipes, harvests, notes, settings, plantPhotos, gardenLayout] =
+  // ─── BUILD PAYLOAD ─────────────────────────────────────────────────────────
+  // Niente pretty-print (null,2): risparmia ~30% memoria sulla stringa.
+
+  const buildDataJson = async () => {
+    const [plantTypes, plants, tasks, recipes, harvests, notes, settings, gardenLayout] =
       await Promise.all([
         db.plantTypes.toArray(),
         db.plants.toArray(),
@@ -53,19 +60,32 @@ export default function BackupRestoreCard() {
         db.harvests.toArray(),
         db.notes.toArray(),
         db.settings.toArray(),
-        db.plantPhotos.toArray(),
         db.gardenLayout.toArray(),
       ]);
     return JSON.stringify({
       version: BACKUP_FORMAT_VERSION,
+      kind: 'data',
       exportedAt: new Date().toISOString(),
       appVersion: __APP_VERSION__,
-      data: { plantTypes, plants, tasks, recipes, harvests, notes, settings, plantPhotos, gardenLayout },
-    }, null, 2);
+      data: { plantTypes, plants, tasks, recipes, harvests, notes, settings, gardenLayout },
+    });
   };
 
-  // Promise.race timeout wrapper — protegge dai deadlock silenziosi di Capacitor
-  // su alcuni device Android.
+  const buildPhotosJson = async () => {
+    const plantPhotos = await db.plantPhotos.toArray();
+    return {
+      json: JSON.stringify({
+        version: BACKUP_FORMAT_VERSION,
+        kind: 'photos',
+        exportedAt: new Date().toISOString(),
+        appVersion: __APP_VERSION__,
+        data: { plantPhotos },
+      }),
+      count: plantPhotos.length,
+    };
+  };
+
+  // Promise.race timeout — protegge dai deadlock silenziosi di Capacitor.
   function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
     return Promise.race([
       promise,
@@ -75,139 +95,109 @@ export default function BackupRestoreCard() {
     ]);
   }
 
-  // ── PRIMARIO: salva il file in cartella visibile dal File Manager. Niente Share API.
-  // Approccio "safe path" che funziona indipendentemente da FileProvider e plugin Share.
-  const handleSaveToDevice = async () => {
+  // ─── SAVE / SHARE ──────────────────────────────────────────────────────────
+  // Scrive su Directory.Cache (no permessi) e apre la dialog di sistema Share,
+  // così l'utente sceglie "Salva nei File" → Download / Drive / WhatsApp ecc.
+
+  async function writeAndShare(filename: string, json: string, dialogTitle: string) {
+    await withTimeout(
+      Filesystem.writeFile({
+        path: filename,
+        data: json,
+        directory: Directory.Cache,
+        encoding: Encoding.UTF8,
+      }),
+      30000,
+      `writeFile ${filename}`
+    );
+    const uriResult = await Filesystem.getUri({
+      path: filename,
+      directory: Directory.Cache,
+    });
+    await withTimeout(
+      Share.share({
+        title: 'OrtoManager Backup',
+        text: filename,
+        url: uriResult.uri,
+        dialogTitle,
+      }),
+      60000,
+      `Share ${filename}`
+    );
+  }
+
+  const handleSaveBackup = async () => {
     setIsExporting(true);
     try {
-      let json: string;
+      const date = new Date().toISOString().slice(0, 10);
+
+      // 1) FILE DATI
+      let dataJson: string;
       try {
-        json = await buildBackupJson();
+        dataJson = await buildDataJson();
       } catch (err) {
         toast.error(t('backup.export_error_detail', { message: (err as Error).message }));
-        console.error('[backup] buildBackupJson failed', err);
+        console.error('[backup] buildDataJson failed', err);
         return;
       }
-      const date = new Date().toISOString().slice(0, 10);
-      const filename = `ortomanager-backup-${date}.json`;
 
-      if (isCapacitor()) {
-        // Directory.External mappa a getExternalFilesDir(null) =
-        // /storage/emulated/0/Android/data/it.ortomanager.app/files/
-        // cartella app-private, NON richiede permessi runtime su nessuna versione Android.
-        // (Directory.Documents mappa invece a cartella shared /Documents/ che richiede
-        // scoped storage permission e provoca crash nativo su Android 10+.)
-        try {
-          await withTimeout(
-            Filesystem.writeFile({
-              path: filename,
-              data: json,
-              directory: Directory.External,
-              encoding: Encoding.UTF8,
-            }),
-            15000,
-            'writeFile External'
-          );
-        } catch (err) {
-          toast.error(t('backup.export_error_detail', { message: (err as Error).message }), { duration: 8000 });
-          console.error('[backup] writeFile External failed', err);
-          return;
-        }
-
-        let displayPath = `Android/data/it.ortomanager.app/files/${filename}`;
-        try {
-          const uriResult = await Filesystem.getUri({
-            path: filename,
-            directory: Directory.External,
-          });
-          displayPath = uriResult.uri.replace(/^file:\/\//, '');
-        } catch { /* path display fallback già impostato */ }
-
-        toast.success(t('backup.save_success_path', { path: displayPath }), { duration: 10000 });
-        toast.info(t('backup.save_hint'), { duration: 8000 });
-      } else {
-        // Web: download tramite blob anchor
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        toast.success(t('backup.export_success_web'));
-      }
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  // ── SECONDARIO: tenta la Share API. Comodo quando funziona, ma può fallire.
-  const handleShareBackup = async () => {
-    setIsExporting(true);
-    try {
-      const json = await buildBackupJson();
-      const date = new Date().toISOString().slice(0, 10);
-      const filename = `ortomanager-backup-${date}.json`;
+      const dataFilename = `ortomanager-backup-${date}.json`;
 
       if (!isCapacitor()) {
-        // In web il comportamento è lo stesso del salvataggio
-        await handleSaveToDevice();
+        // Web: download via blob anchor
+        triggerDownload(dataFilename, dataJson);
+        toast.success(t('backup.export_success_web'));
+      } else {
+        try {
+          await writeAndShare(dataFilename, dataJson, t('backup.dialog_title_data'));
+        } catch (err) {
+          const msg = (err as Error).message || '';
+          if (msg.includes('cancel') || msg.includes('abort')) {
+            toast.info(t('backup.share_cancelled'));
+            return;
+          }
+          toast.error(t('backup.export_error_detail', { message: msg }), { duration: 8000 });
+          console.error('[backup] data share failed', err);
+          return;
+        }
+      }
+
+      // libera la memoria della stringa dati prima di costruire quella delle foto
+      dataJson = '';
+
+      // 2) FILE FOTO (solo se presenti)
+      let photosResult: { json: string; count: number };
+      try {
+        photosResult = await buildPhotosJson();
+      } catch (err) {
+        toast.error(t('backup.export_error_detail', { message: (err as Error).message }));
+        console.error('[backup] buildPhotosJson failed', err);
         return;
       }
 
-      try {
-        await withTimeout(
-          Filesystem.writeFile({
-            path: filename,
-            data: json,
-            directory: Directory.Cache,
-            encoding: Encoding.UTF8,
-          }),
-          15000,
-          'writeFile Cache'
-        );
-      } catch (err) {
-        toast.error(t('backup.export_error_detail', { message: `writeFile: ${(err as Error).message}` }), { duration: 8000 });
-        console.error('[backup] share/writeFile failed', err);
+      if (photosResult.count === 0) {
+        toast.success(t('backup.data_only_done'), { duration: 8000 });
         return;
       }
 
-      let uri: string;
-      try {
-        const uriResult = await Filesystem.getUri({
-          path: filename,
-          directory: Directory.Cache,
-        });
-        uri = uriResult.uri;
-      } catch (err) {
-        toast.error(t('backup.export_error_detail', { message: `getUri: ${(err as Error).message}` }), { duration: 8000 });
-        console.error('[backup] share/getUri failed', err);
-        return;
-      }
+      const photosFilename = `ortomanager-foto-${date}.json`;
 
-      try {
-        await withTimeout(
-          Share.share({
-            title: 'OrtoManager Backup',
-            text: `Backup OrtoManager del ${date}`,
-            url: uri,
-            dialogTitle: 'Salva o condividi il backup',
-          }),
-          20000,
-          'Share.share'
-        );
-        toast.success(t('backup.export_success_cap', { filename }));
-      } catch (err) {
-        const msg = (err as Error).message || '';
-        if (msg.includes('cancel') || msg.includes('abort')) {
-          toast.info(t('backup.share_cancelled'));
-        } else if (msg.startsWith('Timeout')) {
-          toast.error(t('backup.timeout'), { duration: 10000 });
-        } else {
-          toast.error(t('backup.export_error_detail', { message: `share: ${msg}` }), { duration: 8000 });
-          console.error('[backup] Share.share failed', err);
+      if (!isCapacitor()) {
+        triggerDownload(photosFilename, photosResult.json);
+        toast.success(t('backup.photos_done_web', { count: photosResult.count }));
+      } else {
+        toast.info(t('backup.photos_next', { count: photosResult.count }), { duration: 5000 });
+        try {
+          await writeAndShare(photosFilename, photosResult.json, t('backup.dialog_title_photos'));
+          toast.success(t('backup.photos_done', { count: photosResult.count }));
+        } catch (err) {
+          const msg = (err as Error).message || '';
+          if (msg.includes('cancel') || msg.includes('abort')) {
+            toast.info(t('backup.photos_share_cancelled'));
+          } else {
+            toast.error(t('backup.export_error_detail', { message: msg }), { duration: 8000 });
+            console.error('[backup] photos share failed', err);
+          }
         }
       }
     } finally {
@@ -215,29 +205,38 @@ export default function BackupRestoreCard() {
     }
   };
 
-  // ── FALLBACK ULTIMO: copia il JSON intero negli appunti del sistema.
-  // Niente plugin nativi, funziona sempre. L'utente incolla in WhatsApp/Note/email.
+  function triggerDownload(filename: string, json: string) {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ─── FALLBACK: clipboard. Solo dati, MAI le foto (clipboard si rompe). ──
   const handleCopyBackup = async () => {
     setIsExporting(true);
     try {
       let json: string;
       try {
-        json = await buildBackupJson();
+        json = await buildDataJson();
       } catch (err) {
         toast.error(t('backup.copy_error', { message: (err as Error).message }));
         return;
       }
 
-      // Strada 1: Clipboard API moderna (richiede HTTPS o WebView Capacitor).
       try {
         await navigator.clipboard.writeText(json);
         toast.success(t('backup.copy_success'), { duration: 10000 });
         return;
       } catch {
-        // Fallthrough al metodo legacy.
+        // legacy fallback
       }
 
-      // Strada 2: textarea + execCommand (deprecato ma funziona in WebView vecchie).
       try {
         const ta = document.createElement('textarea');
         ta.value = json;
@@ -261,6 +260,8 @@ export default function BackupRestoreCard() {
     }
   };
 
+  // ─── IMPORT ────────────────────────────────────────────────────────────────
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -273,8 +274,9 @@ export default function BackupRestoreCard() {
           toast.error(t('backup.invalid_file'));
           return;
         }
-        setPendingData(parsed.data);
-        setPendingVersion(typeof parsed.version === 'number' ? parsed.version : 1);
+        // kind è opzionale per backward compat (v1/v2 = sempre data).
+        const kind: 'data' | 'photos' = parsed.kind === 'photos' ? 'photos' : 'data';
+        setPending({ version: typeof parsed.version === 'number' ? parsed.version : 1, kind, data: parsed.data });
         setShowRestoreConfirm(true);
       } catch {
         toast.error(t('backup.corrupt_file'));
@@ -285,82 +287,103 @@ export default function BackupRestoreCard() {
   };
 
   const handleConfirmRestore = async () => {
-    if (!pendingData) return;
+    if (!pending) return;
     setIsRestoring(true);
     try {
-      await db.transaction(
-        'rw',
-        [db.plantTypes, db.plants, db.tasks, db.recipes, db.harvests, db.notes, db.settings, db.plantPhotos, db.gardenLayout],
-        async () => {
-          // Tabelle senza campi Date.
-          if (pendingData.plantTypes?.length) {
-            await db.plantTypes.clear();
-            await db.plantTypes.bulkPut(pendingData.plantTypes as Parameters<typeof db.plantTypes.bulkPut>[0]);
-          }
-          if (pendingData.recipes?.length) {
-            await db.recipes.clear();
-            await db.recipes.bulkPut(pendingData.recipes as Parameters<typeof db.recipes.bulkPut>[0]);
-          }
-          if (pendingData.settings?.length) {
-            await db.settings.clear();
-            await db.settings.bulkPut(pendingData.settings as Parameters<typeof db.settings.bulkPut>[0]);
-          }
-          if (pendingData.gardenLayout?.length) {
-            await db.gardenLayout.clear();
-            await db.gardenLayout.bulkPut(pendingData.gardenLayout as Parameters<typeof db.gardenLayout.bulkPut>[0]);
-          }
+      const d = pending.data;
 
-          // Tabelle con campi Date — sempre clear+restore (anche v1).
-          if (pendingData.plants?.length) {
-            await db.plants.clear();
-            await db.plants.bulkPut(
-              (pendingData.plants as Record<string, unknown>[]).map(p =>
-                reviveDates(p, ['plantedDate', 'lastWatered'])
-              ) as Parameters<typeof db.plants.bulkPut>[0]
-            );
-          }
-          if (pendingData.tasks?.length) {
-            await db.tasks.clear();
-            await db.tasks.bulkPut(
-              (pendingData.tasks as Record<string, unknown>[]).map(r =>
-                reviveDates(r, ['dueDate', 'createdAt'])
-              ) as Parameters<typeof db.tasks.bulkPut>[0]
-            );
-          }
-          if (pendingData.harvests?.length) {
-            await db.harvests.clear();
-            await db.harvests.bulkPut(
-              (pendingData.harvests as Record<string, unknown>[]).map(r =>
-                reviveDates(r, ['date'])
-              ) as Parameters<typeof db.harvests.bulkPut>[0]
-            );
-          }
-          if (pendingData.notes?.length) {
-            await db.notes.clear();
-            await db.notes.bulkPut(
-              (pendingData.notes as Record<string, unknown>[]).map(r =>
-                reviveDates(r, ['date'])
-              ) as Parameters<typeof db.notes.bulkPut>[0]
-            );
-          }
-          if (pendingData.plantPhotos?.length) {
-            await db.plantPhotos.clear();
+      if (pending.kind === 'photos') {
+        // Solo foto: clear + restore plantPhotos. NON tocca le altre tabelle.
+        await db.transaction('rw', db.plantPhotos, async () => {
+          await db.plantPhotos.clear();
+          if (d.plantPhotos?.length) {
             await db.plantPhotos.bulkPut(
-              (pendingData.plantPhotos as Record<string, unknown>[]).map(r =>
+              (d.plantPhotos as Record<string, unknown>[]).map(r =>
                 reviveDates(r, ['date'])
               ) as Parameters<typeof db.plantPhotos.bulkPut>[0]
             );
           }
-        }
-      );
-
-      if (pendingVersion < BACKUP_FORMAT_VERSION) {
-        toast.success(t('backup.legacy_v1_imported'));
+        });
+        toast.success(t('backup.import_photos_success', { count: d.plantPhotos?.length ?? 0 }));
       } else {
-        toast.success(t('backup.import_success'));
+        // Dati: ripristina tutte le tabelle presenti tranne plantPhotos.
+        // Per i backup v2 (che includono plantPhotos) le foto restano ripristinate
+        // se l'utente importa un vecchio file unificato — backward compat.
+        await db.transaction(
+          'rw',
+          [db.plantTypes, db.plants, db.tasks, db.recipes, db.harvests, db.notes, db.settings, db.plantPhotos, db.gardenLayout],
+          async () => {
+            if (d.plantTypes?.length) {
+              await db.plantTypes.clear();
+              await db.plantTypes.bulkPut(d.plantTypes as Parameters<typeof db.plantTypes.bulkPut>[0]);
+            }
+            if (d.recipes?.length) {
+              await db.recipes.clear();
+              await db.recipes.bulkPut(d.recipes as Parameters<typeof db.recipes.bulkPut>[0]);
+            }
+            if (d.settings?.length) {
+              await db.settings.clear();
+              await db.settings.bulkPut(d.settings as Parameters<typeof db.settings.bulkPut>[0]);
+            }
+            if (d.gardenLayout?.length) {
+              await db.gardenLayout.clear();
+              await db.gardenLayout.bulkPut(d.gardenLayout as Parameters<typeof db.gardenLayout.bulkPut>[0]);
+            }
+            if (d.plants?.length) {
+              await db.plants.clear();
+              await db.plants.bulkPut(
+                (d.plants as Record<string, unknown>[]).map(p =>
+                  reviveDates(p, ['plantedDate', 'lastWatered'])
+                ) as Parameters<typeof db.plants.bulkPut>[0]
+              );
+            }
+            if (d.tasks?.length) {
+              await db.tasks.clear();
+              await db.tasks.bulkPut(
+                (d.tasks as Record<string, unknown>[]).map(r =>
+                  reviveDates(r, ['dueDate', 'createdAt'])
+                ) as Parameters<typeof db.tasks.bulkPut>[0]
+              );
+            }
+            if (d.harvests?.length) {
+              await db.harvests.clear();
+              await db.harvests.bulkPut(
+                (d.harvests as Record<string, unknown>[]).map(r =>
+                  reviveDates(r, ['date'])
+                ) as Parameters<typeof db.harvests.bulkPut>[0]
+              );
+            }
+            if (d.notes?.length) {
+              await db.notes.clear();
+              await db.notes.bulkPut(
+                (d.notes as Record<string, unknown>[]).map(r =>
+                  reviveDates(r, ['date'])
+                ) as Parameters<typeof db.notes.bulkPut>[0]
+              );
+            }
+            // Compat v2: file unificato → ripristina anche le foto.
+            if (d.plantPhotos?.length) {
+              await db.plantPhotos.clear();
+              await db.plantPhotos.bulkPut(
+                (d.plantPhotos as Record<string, unknown>[]).map(r =>
+                  reviveDates(r, ['date'])
+                ) as Parameters<typeof db.plantPhotos.bulkPut>[0]
+              );
+            }
+          }
+        );
+
+        if (pending.version < 2) {
+          toast.success(t('backup.legacy_v1_imported'));
+        } else if (pending.version === 2) {
+          toast.success(t('backup.import_success'));
+        } else {
+          toast.success(t('backup.import_data_success'));
+        }
       }
+
       setShowRestoreConfirm(false);
-      setPendingData(null);
+      setPending(null);
     } catch (err) {
       toast.error(t('backup.import_error'));
       console.error(err);
@@ -369,9 +392,13 @@ export default function BackupRestoreCard() {
     }
   };
 
-  const plantsCount = (pendingData?.plants as unknown[])?.length ?? 0;
-  const tasksCount = (pendingData?.tasks as unknown[])?.length ?? 0;
-  const harvestsCount = (pendingData?.harvests as unknown[])?.length ?? 0;
+  // ─── RENDER ────────────────────────────────────────────────────────────────
+
+  const plantsCount = (pending?.data.plants as unknown[])?.length ?? 0;
+  const tasksCount = (pending?.data.tasks as unknown[])?.length ?? 0;
+  const harvestsCount = (pending?.data.harvests as unknown[])?.length ?? 0;
+  const photosCount = (pending?.data.plantPhotos as unknown[])?.length ?? 0;
+  const isPhotosFile = pending?.kind === 'photos';
 
   return (
     <Card className="dark:bg-gray-800 dark:border-gray-700">
@@ -385,19 +412,24 @@ export default function BackupRestoreCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {showRestoreConfirm && pendingData ? (
+        {showRestoreConfirm && pending ? (
           <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl space-y-3">
             <div className="flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">
-                  {t('backup.confirm_title')}
+                  {isPhotosFile ? t('backup.confirm_title_photos') : t('backup.confirm_title')}
                 </p>
                 <p className="text-xs text-amber-800 dark:text-amber-400 mt-1">
-                  {t('backup.confirm_desc')}
-                  {plantsCount > 0 ? ` ${t('backup.confirm_plants', { count: plantsCount })},` : ''}
-                  {tasksCount > 0 ? ` ${t('backup.confirm_tasks', { count: tasksCount })},` : ''}
-                  {harvestsCount > 0 ? ` ${t('backup.confirm_harvests', { count: harvestsCount })}` : ''}
+                  {isPhotosFile
+                    ? t('backup.confirm_desc_photos', { count: photosCount })
+                    : <>
+                        {t('backup.confirm_desc')}
+                        {plantsCount > 0 ? ` ${t('backup.confirm_plants', { count: plantsCount })},` : ''}
+                        {tasksCount > 0 ? ` ${t('backup.confirm_tasks', { count: tasksCount })},` : ''}
+                        {harvestsCount > 0 ? ` ${t('backup.confirm_harvests', { count: harvestsCount })}` : ''}
+                      </>
+                  }
                 </p>
               </div>
             </div>
@@ -414,7 +446,7 @@ export default function BackupRestoreCard() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setShowRestoreConfirm(false); setPendingData(null); }}
+                onClick={() => { setShowRestoreConfirm(false); setPending(null); }}
                 disabled={isRestoring}
               >
                 {t('backup.cancel')}
@@ -423,16 +455,10 @@ export default function BackupRestoreCard() {
           </div>
         ) : (
           <>
-            <Button onClick={handleSaveToDevice} className="w-full" variant="default" disabled={isExporting}>
-              <Save className="w-4 h-4 mr-2" />
-              {isExporting ? t('backup.preparing') : t('backup.save_to_device')}
+            <Button onClick={handleSaveBackup} className="w-full" variant="default" disabled={isExporting}>
+              <Share2 className="w-4 h-4 mr-2" />
+              {isExporting ? t('backup.preparing') : t('backup.save_unified')}
             </Button>
-            {isCapacitor() && (
-              <Button onClick={handleShareBackup} className="w-full" variant="secondary" disabled={isExporting}>
-                <Share2 className="w-4 h-4 mr-2" />
-                {t('backup.export_share_btn')}
-              </Button>
-            )}
             <Button
               onClick={() => fileInputRef.current?.click()}
               className="w-full"

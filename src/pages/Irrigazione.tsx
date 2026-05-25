@@ -91,12 +91,14 @@ export default function IrrigazionePage() {
                         <tr className="text-left text-xs text-muted-foreground border-b border-gray-100 dark:border-gray-700">
                           <th className="px-4 py-2 font-medium">{t('irrigation.col.plant')}</th>
                           <th className="px-2 py-2 font-medium whitespace-nowrap">{t('irrigation.col.frequency')}</th>
-                          <th className="px-4 py-2 font-medium text-right whitespace-nowrap">{t('irrigation.col.water')}</th>
+                          <th className="px-4 py-2 font-medium text-right whitespace-nowrap">{t('irrigation.col.water_per_plant')}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {items.map(p => {
-                          const mlTotal = (ML_PER_PLANT[p.category] ?? 500) * (p.numberOfPlants || 1);
+                          const mlPerPlant = ML_PER_PLANT[p.category] ?? 500;
+                          const count = p.numberOfPlants || 1;
+                          const mlTotal = mlPerPlant * count;
                           return (
                             <tr key={p.id} className="border-b border-gray-50 dark:border-gray-700/50 last:border-0">
                               <td className="px-4 py-2.5 align-top">
@@ -113,8 +115,15 @@ export default function IrrigazionePage() {
                                   ? t('plants.watering_every_one', { count: p.wateringFrequency })
                                   : t('plants.watering_every_other', { count: p.wateringFrequency })}
                               </td>
-                              <td className="px-4 py-2.5 text-right whitespace-nowrap align-top font-medium text-blue-600 dark:text-blue-400">
-                                {formatWater(mlTotal, lang)}
+                              <td className="px-4 py-2.5 text-right whitespace-nowrap align-top">
+                                <div className="font-medium text-blue-600 dark:text-blue-400">
+                                  {formatWater(mlPerPlant, lang)}
+                                </div>
+                                {count > 1 && (
+                                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                                    {t('irrigation.water_total_line', { count, total: formatWater(mlTotal, lang) })}
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           );
