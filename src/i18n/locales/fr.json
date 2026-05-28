@@ -32,7 +32,8 @@
     "flowering": "En floraison",
     "fruiting": "En fructification",
     "harvested": "Récolté",
-    "dormant": "Dormant"
+    "dormant": "Dormant",
+    "uprooted": "Arraché"
   },
   "category": {
     "vegetables": "Légumes",

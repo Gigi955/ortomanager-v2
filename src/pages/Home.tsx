@@ -41,7 +41,7 @@ export default function HomePage() {
   }, [t]);
 
   const activePlants = plants?.filter(p => p.status === 'growing' || p.status === 'flowering' || p.status === 'fruiting').length || 0;
-  const needsWateringCount = plants?.filter(needsWatering).length || 0;
+  const needsWateringCount = plants?.filter(p => p.status !== 'uprooted' && needsWatering(p)).length || 0;
 
   const todayTasks = tasks?.filter(t => getDaysUntil(t.dueDate) === 0).length || 0;
   const urgentTasks = tasks?.filter(t => t.priority === 'high').length || 0;

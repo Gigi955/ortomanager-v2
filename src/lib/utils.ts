@@ -55,7 +55,8 @@ export function getStatusColor(status: Plant['status']): string {
     flowering: 'bg-pink-100 text-pink-800',
     fruiting: 'bg-orange-100 text-orange-800',
     harvested: 'bg-blue-100 text-blue-800',
-    dormant: 'bg-gray-100 text-gray-800'
+    dormant: 'bg-gray-100 text-gray-800',
+    uprooted: 'bg-red-100 text-red-800'
   };
   return colors[status];
 }

@@ -32,7 +32,8 @@
     "flowering": "Blühend",
     "fruiting": "Fruchtend",
     "harvested": "Geerntet",
-    "dormant": "Ruhend"
+    "dormant": "Ruhend",
+    "uprooted": "Ausgerissen"
   },
   "category": {
     "vegetables": "Gemüse",

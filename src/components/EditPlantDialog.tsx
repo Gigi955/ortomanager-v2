@@ -39,6 +39,7 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
     { value: 'fruiting',  label: '🍅 ' + t('status.fruiting') },
     { value: 'harvested', label: '✂️ ' + t('status.harvested') },
     { value: 'dormant',   label: '😴 ' + t('status.dormant') },
+    { value: 'uprooted',  label: '🥀 ' + t('status.uprooted') },
   ];
 
   const CATEGORY_OPTIONS: { value: Plant['category']; label: string }[] = [

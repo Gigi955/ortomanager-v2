@@ -30,6 +30,7 @@ const STAGE_EMOJI: Record<Plant['status'], string> = {
   fruiting: '🍅',
   harvested: '✂️',
   dormant: '😴',
+  uprooted: '🥀',
 };
 
 export default function PlantPhotoTimelineDialog({
@@ -180,6 +181,7 @@ export default function PlantPhotoTimelineDialog({
                     <SelectItem value="fruiting">🍅 {t('status.fruiting')}</SelectItem>
                     <SelectItem value="harvested">✂️ {t('status.harvested')}</SelectItem>
                     <SelectItem value="dormant">😴 {t('status.dormant')}</SelectItem>
+                    <SelectItem value="uprooted">🥀 {t('status.uprooted')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

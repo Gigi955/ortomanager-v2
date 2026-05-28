@@ -54,7 +54,7 @@ export interface Plant {
   numberOfPlants: number; // N. piante o semi
   location: string;
   notes?: string;
-  status: 'seedling' | 'growing' | 'flowering' | 'fruiting' | 'harvested' | 'dormant';
+  status: 'seedling' | 'growing' | 'flowering' | 'fruiting' | 'harvested' | 'dormant' | 'uprooted';
   wateringFrequency: number; // giorni
   lastWatered?: Date;
   imageUrl?: string;

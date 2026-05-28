@@ -38,12 +38,14 @@ export default function IrrigazionePage() {
   const plants = useLiveQuery(() => db.plants.toArray());
   const lang = i18n.language?.split('-')[0] || 'it';
 
+  const activePlants = (plants ?? []).filter(p => p.status !== 'uprooted');
+
   const groups = new Map<GroupKey, Plant[]>();
   GROUP_ORDER.forEach(k => groups.set(k, []));
-  (plants ?? []).forEach(p => groups.get(groupOf(p.wateringFrequency))!.push(p));
+  activePlants.forEach(p => groups.get(groupOf(p.wateringFrequency))!.push(p));
   groups.forEach(arr => arr.sort((a, b) => a.name.localeCompare(b.name, lang)));
 
-  const totalPlants = plants?.length ?? 0;
+  const totalPlants = activePlants.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-garden-cream to-white dark:from-gray-900 dark:to-gray-800 pb-20">

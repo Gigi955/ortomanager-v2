@@ -32,7 +32,8 @@
     "flowering": "Flowering",
     "fruiting": "Fruiting",
     "harvested": "Harvested",
-    "dormant": "Dormant"
+    "dormant": "Dormant",
+    "uprooted": "Uprooted"
   },
   "category": {
     "vegetables": "Vegetables",

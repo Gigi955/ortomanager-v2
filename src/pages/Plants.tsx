@@ -576,8 +576,8 @@ export default function PlantsPage() {
   // mantenendo per il resto l'ordine originale (Array.sort è stabile su V8 ≥ 7).
   const sortedPlants = filteredPlants
     ? [...filteredPlants].sort((a, b) => {
-        const aNeeds = needsWatering(a) ? 0 : 1;
-        const bNeeds = needsWatering(b) ? 0 : 1;
+        const aNeeds = (a.status !== 'uprooted' && needsWatering(a)) ? 0 : 1;
+        const bNeeds = (b.status !== 'uprooted' && needsWatering(b)) ? 0 : 1;
         return aNeeds - bNeeds;
       })
     : filteredPlants;
