@@ -41,6 +41,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { checkRotationConflict } from '@/lib/rotation';
 import { formatShortDate } from '@/lib/utils';
+import { ML_PER_PLANT } from '@/lib/water';
 
 interface AddPlantDialogProps {
   open: boolean;
@@ -71,6 +72,7 @@ export default function AddPlantDialog({ open, onOpenChange, preselectedPlantTyp
   const [customName, setCustomName] = useState('');
   const [customCategory, setCustomCategory] = useState<PlantType['category']>('vegetables');
   const [customWatering, setCustomWatering] = useState(3);
+  const [customWaterAmount, setCustomWaterAmount] = useState<string>(''); // ml; vuoto = default categoria
 
   // Campi comuni
   const [numberOfPlants, setNumberOfPlants] = useState(0);
@@ -176,6 +178,7 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
     setCustomName('');
     setCustomCategory('vegetables');
     setCustomWatering(3);
+    setCustomWaterAmount('');
     setNumberOfPlants(0);
     setPriceStr('');
     setLocation('');
@@ -255,6 +258,7 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
           price: priceField,
         });
       } else {
+        const parsedWaterAmount = customWaterAmount === '' ? undefined : parseInt(customWaterAmount, 10);
         await db.plants.add({
           name: customName.trim(),
           plantedDate: new Date(plantedDate),
@@ -266,6 +270,8 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
           notes: notes || undefined,
           imageUrl: imageData || undefined,
           price: priceField,
+          waterAmount: parsedWaterAmount,
+          waterAutoSeasonal: true,
         });
       }
 
@@ -540,6 +546,22 @@ Se non riesci a identificarla, usa name: "Pianta sconosciuta" e confidence: "bas
                   value={customWatering}
                   onChange={(e) => setCustomWatering(parseInt(e.target.value) || 1)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="customWaterAmount">{t('dialogs.addPlant.water_amount_label')}</Label>
+                <Input
+                  id="customWaterAmount"
+                  type="number"
+                  min="1"
+                  inputMode="numeric"
+                  value={customWaterAmount}
+                  onChange={(e) => setCustomWaterAmount(e.target.value.replace(/\D/g, ''))}
+                  placeholder={String(ML_PER_PLANT[customCategory] ?? 500)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('dialogs.addPlant.water_amount_help')}
+                </p>
               </div>
             </>
           )}

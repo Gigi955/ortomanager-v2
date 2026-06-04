@@ -4,16 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { db, Plant } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Droplet, MapPin } from 'lucide-react';
-
-// Stima ml d'acqua per singola pianta, in base alla categoria.
-// Moltiplicata poi per plant.numberOfPlants per ottenere il totale per riga.
-const ML_PER_PLANT: Record<Plant['category'], number> = {
-  herbs: 200,
-  flowers: 300,
-  vegetables: 500,
-  fruits: 1000,
-  trees: 5000,
-};
+import { waterMlPerPlant, waterMlTotal, formatWater, getSeasonalMultiplier, isSeasonalActive } from '@/lib/water';
 
 type GroupKey = 'daily' | 'every_2_3' | 'weekly' | 'biweekly_or_more';
 const GROUP_ORDER: GroupKey[] = ['daily', 'every_2_3', 'weekly', 'biweekly_or_more'];
@@ -23,13 +14,6 @@ function groupOf(freq: number): GroupKey {
   if (freq <= 3) return 'every_2_3';
   if (freq <= 7) return 'weekly';
   return 'biweekly_or_more';
-}
-
-function formatWater(ml: number, lang: string): string {
-  if (ml < 1000) return `${ml} ml`;
-  const liters = ml / 1000;
-  const formatted = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 }).format(liters);
-  return `${formatted} L`;
 }
 
 export default function IrrigazionePage() {
@@ -46,6 +30,10 @@ export default function IrrigazionePage() {
   groups.forEach(arr => arr.sort((a, b) => a.name.localeCompare(b.name, lang)));
 
   const totalPlants = activePlants.length;
+  const now = new Date();
+  const monthName = new Intl.DateTimeFormat(lang, { month: 'long' }).format(now);
+  const mult = getSeasonalMultiplier(now);
+  const multStr = mult.toFixed(2).replace(/\.?0+$/, '');
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-garden-cream to-white dark:from-gray-900 dark:to-gray-800 pb-20">
@@ -63,6 +51,13 @@ export default function IrrigazionePage() {
       </div>
 
       <div className="px-4 mt-6 space-y-4">
+        {/* Badge moltiplicatore stagionale */}
+        <div className="flex items-center justify-between rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/60 dark:bg-blue-900/10 px-4 py-2 text-sm">
+          <span className="text-blue-700 dark:text-blue-300">
+            🍂 {t('irrigation.month_multiplier', { month: monthName, mult: multStr })}
+          </span>
+        </div>
+
         {totalPlants === 0 ? (
           <Card className="dark:bg-gray-800 dark:border-gray-700">
             <CardContent className="p-6 text-center text-muted-foreground">
@@ -98,9 +93,10 @@ export default function IrrigazionePage() {
                       </thead>
                       <tbody>
                         {items.map(p => {
-                          const mlPerPlant = ML_PER_PLANT[p.category] ?? 500;
+                          const mlPerPlant = waterMlPerPlant(p, now);
                           const count = p.numberOfPlants || 1;
-                          const mlTotal = mlPerPlant * count;
+                          const mlTotal = waterMlTotal(p, now);
+                          const seasonal = isSeasonalActive(p);
                           return (
                             <tr key={p.id} className="border-b border-gray-50 dark:border-gray-700/50 last:border-0">
                               <td className="px-4 py-2.5 align-top">
@@ -120,6 +116,7 @@ export default function IrrigazionePage() {
                               <td className="px-4 py-2.5 text-right whitespace-nowrap align-top">
                                 <div className="font-medium text-blue-600 dark:text-blue-400">
                                   {formatWater(mlPerPlant, lang)}
+                                  {seasonal && <span className="ml-1 text-[10px] text-muted-foreground">🍂</span>}
                                 </div>
                                 {count > 1 && (
                                   <div className="text-[11px] text-muted-foreground mt-0.5">

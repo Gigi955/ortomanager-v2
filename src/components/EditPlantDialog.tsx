@@ -22,6 +22,7 @@ import {
 import { toast } from 'sonner';
 import { Trash2, Camera, X, Plus, Link2, Paperclip, FileText, Download, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ML_PER_PLANT, getSeasonalMultiplier, formatWater } from '@/lib/water';
 
 interface EditPlantDialogProps {
   plant: Plant | null;
@@ -30,7 +31,8 @@ interface EditPlantDialogProps {
 }
 
 export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlantDialogProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language?.split('-')[0] || 'it';
 
   const STATUS_OPTIONS: { value: Plant['status']; label: string }[] = [
     { value: 'seedling',  label: '🌱 ' + t('status.seedling') },
@@ -58,6 +60,8 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
   const [location, setLocation] = useState('');
   const [plantedDate, setPlantedDate] = useState('');
   const [wateringFrequency, setWateringFrequency] = useState('');
+  const [waterAmount, setWaterAmount] = useState<string>('');
+  const [waterAutoSeasonal, setWaterAutoSeasonal] = useState<boolean>(true);
   const [notes, setNotes] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -83,6 +87,8 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
       const _localDate = `${_pd.getFullYear()}-${String(_pd.getMonth()+1).padStart(2,'0')}-${String(_pd.getDate()).padStart(2,'0')}`;
       setPlantedDate(_localDate);
       setWateringFrequency(String(plant.wateringFrequency));
+      setWaterAmount(plant.waterAmount !== undefined ? String(plant.waterAmount) : '');
+      setWaterAutoSeasonal(plant.waterAutoSeasonal ?? (plant.waterAmount === undefined));
       setNotes(plant.notes ?? '');
       // Merge imageUrl legacy + images array
       const legacy = plant.imageUrl ? [plant.imageUrl] : [];
@@ -108,6 +114,7 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
     if (isNaN(parsedWatering) || parsedWatering < 1) { toast.error(t('dialogs.editPlant.error_watering')); return; }
 
     try {
+      const parsedWaterAmount = waterAmount === '' ? undefined : parseInt(waterAmount, 10);
       await db.plants.update(plant.id, {
         name: name.trim(),
         variety: variety.trim() || undefined,
@@ -117,6 +124,8 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
         location: location.trim(),
         plantedDate: new Date(plantedDate),
         wateringFrequency: parsedWatering,
+        waterAmount: parsedWaterAmount,
+        waterAutoSeasonal,
         notes: notes.trim() || undefined,
         imageUrl: images[0] || undefined,
         images: images.length > 0 ? images : undefined,
@@ -331,6 +340,42 @@ export default function EditPlantDialog({ plant, open, onOpenChange }: EditPlant
                 placeholder="es. 3"
               />
             </div>
+          </div>
+
+          {/* Quantita acqua per innaffiatura */}
+          <div className="space-y-2 rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-900/10 p-3">
+            <Label htmlFor="edit-water-amount">{t('dialogs.editPlant.water_amount_label')}</Label>
+            <Input
+              id="edit-water-amount"
+              type="number"
+              min="1"
+              inputMode="numeric"
+              value={waterAmount}
+              onChange={e => setWaterAmount(e.target.value.replace(/\D/g, ''))}
+              placeholder={String(ML_PER_PLANT[category] ?? 500)}
+            />
+            <label className="flex items-center gap-2 text-sm select-none cursor-pointer">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-garden-leaf"
+                checked={waterAutoSeasonal}
+                onChange={e => setWaterAutoSeasonal(e.target.checked)}
+              />
+              <span>{t('dialogs.editPlant.water_seasonal_label')}</span>
+            </label>
+            {(() => {
+              const base = waterAmount === '' ? (ML_PER_PLANT[category] ?? 500) : (parseInt(waterAmount, 10) || 0);
+              const mult = getSeasonalMultiplier();
+              const today = Math.round(waterAutoSeasonal ? base * mult : base);
+              return (
+                <p className="text-xs text-muted-foreground">
+                  {t('dialogs.editPlant.water_preview', {
+                    today: formatWater(today, lang),
+                    mult: mult.toFixed(2).replace(/\.?0+$/, ''),
+                  })}
+                </p>
+              );
+            })()}
           </div>
 
           {/* Posizione */}

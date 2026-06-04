@@ -38,6 +38,7 @@ import {
   Paperclip,
 } from 'lucide-react';
 import { formatShortDate, getStatusColor, getStatusLabel, needsWatering } from '@/lib/utils';
+import { waterMlPerPlant, formatWater, isSeasonalActive } from '@/lib/water';
 import AddPlantDialog from '@/components/AddPlantDialog';
 import EditPlantDialog from '@/components/EditPlantDialog';
 import PlantDiagnosticDialog from '@/components/PlantDiagnosticDialog';
@@ -182,10 +183,13 @@ function PlantTypeDetails({ plantType }: { plantType: PlantType }) {
 
 //  Card singola pianta utente
 function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; onEdit: (p: Plant) => void; onDiagnose: (p: Plant) => void; onTimeline: (p: Plant) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language?.split('-')[0] || 'it';
   const [expanded, setExpanded] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const needsWater = needsWatering(plant);
+  const waterPerPlant = waterMlPerPlant(plant);
+  const seasonal = isSeasonalActive(plant);
 
   // Tutte le foto della pianta (compatibilità legacy imageUrl + nuovo images[])
   const allPhotos: string[] = plant.images && plant.images.length > 0
@@ -276,6 +280,13 @@ function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; on
           <div className="flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-purple-400" />
             <span>{formatShortDate(plant.plantedDate)}</span>
+          </div>
+          <div className="flex items-center gap-1.5 col-span-2" title={t('plants.water_per_plant_title')}>
+            <Droplet className="w-3.5 h-3.5 text-cyan-500" />
+            <span>
+              {formatWater(waterPerPlant, lang)} {t('plants.per_plant_suffix')}
+              {seasonal && <span className="ml-1 text-[10px] text-muted-foreground">🍂 {t('plants.seasonal_short')}</span>}
+            </span>
           </div>
         </div>
 

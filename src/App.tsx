@@ -4,6 +4,7 @@ import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
 import { useEffect } from 'react';
 import { db, seedDatabase } from './lib/db';
+import { scheduleDailyWateringSummary } from './lib/notifications';
 import OnboardingPermissions, { useOnboarding } from './components/OnboardingPermissions';
 import { FontSizeProvider } from './contexts/FontSizeContext';
 
@@ -37,6 +38,7 @@ function AppContent() {
   useEffect(() => {
     db.open()
       .then(() => seedDatabase())
+      .then(() => scheduleDailyWateringSummary())
       .catch(console.error);
   }, []);
 

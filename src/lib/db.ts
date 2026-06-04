@@ -62,6 +62,8 @@ export interface Plant {
   category: 'vegetables' | 'fruits' | 'herbs' | 'flowers' | 'trees';
   attachments?: Attachment[]; // file/link allegati alle note
   price?: number; // prezzo unitario per piantina (EUR), opzionale
+  waterAmount?: number; // ml per innaffiatura (override manuale o iniziale)
+  waterAutoSeasonal?: boolean; // true = applica moltiplicatore stagionale
 }
 
 // Impostazioni dell'app

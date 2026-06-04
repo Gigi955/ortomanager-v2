@@ -122,6 +122,9 @@
     "prevention": "Prevenzione",
     "watering_every_one": "Ogni {{count}} giorno",
     "watering_every_other": "Ogni {{count}} giorni",
+    "water_per_plant_title": "Acqua per ogni innaffiatura",
+    "per_plant_suffix": "/ pianta",
+    "seasonal_short": "stagionale",
     "db_catalog": "Catalogo DB",
     "catalog_empty_note": "catalogo vuoto!",
     "friend_plants": "Piante amiche",
@@ -364,6 +367,8 @@
       "identify_no_key": "Configura prima la chiave API in Impostazioni",
       "category": "Categoria *",
       "watering_label": "Irrigazione (giorni tra un'annaffiatura) *",
+      "water_amount_label": "Acqua per innaffiatura (ml)",
+      "water_amount_help": "Opzionale — se vuoto, valore di default per categoria",
       "num_plants": "N. piante o semi",
       "price": "Prezzo per piantina (€)",
       "price_ph": "es. 0.50",
@@ -399,6 +404,9 @@
       "category": "Categoria *",
       "num_plants": "N. piante *",
       "watering": "Irrigazione (giorni) *",
+      "water_amount_label": "Acqua per innaffiatura (ml)",
+      "water_seasonal_label": "Adatta automaticamente al mese",
+      "water_preview": "Oggi: {{today}} (moltiplicatore × {{mult}})",
       "location": "Posizione nell'orto *",
       "location_ph": "es. Aiuola Sud, Vaso balcone...",
       "planting_date": "Data semina/trapianto *",
@@ -656,6 +664,7 @@
       "water": "Acqua",
       "water_per_plant": "Acqua/pianta"
     },
-    "water_total_line": "× {{count}} = {{total}}"
+    "water_total_line": "× {{count}} = {{total}}",
+    "month_multiplier": "Mese: {{month}} · moltiplicatore stagionale × {{mult}}"
   }
 }

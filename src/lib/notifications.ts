@@ -1,8 +1,11 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { db, type Task } from './db';
+import { needsWatering } from './utils';
 
 const DEFAULT_HOUR = 9;
+const WATERING_DAILY_ID = 900001;
+const WATERING_HOUR = 7;
 
 const CATEGORY_EMOJI: Record<Task['category'], string> = {
   watering: '💧',
@@ -101,6 +104,60 @@ export async function cancelAllTaskNotifications(): Promise<void> {
     }
   } catch (e) {
     console.warn('[notifications] cancelAll failed', e);
+  }
+}
+
+// Notifica giornaliera alle 7:00 con elenco piante da innaffiare oggi.
+// Va richiamata all'apertura dell'app (riarma per il prossimo giorno).
+export async function scheduleDailyWateringSummary(): Promise<void> {
+  if (!(await notificationsAllowed())) return;
+
+  const plants = await db.plants.toArray();
+  const todo = plants.filter(p => p.status !== 'uprooted' && needsWatering(p));
+
+  const at = new Date();
+  at.setHours(WATERING_HOUR, 0, 0, 0);
+  if (at.getTime() <= Date.now()) at.setDate(at.getDate() + 1);
+
+  try {
+    await LocalNotifications.cancel({ notifications: [{ id: WATERING_DAILY_ID }] }).catch(() => {});
+
+    const title = todo.length === 0
+      ? '💧 Promemoria innaffiatura'
+      : (todo.length === 1
+          ? '💧 1 pianta da innaffiare oggi'
+          : `💧 ${todo.length} piante da innaffiare oggi`);
+
+    const body = todo.length === 0
+      ? 'Nessuna pianta da innaffiare oggi'
+      : (() => {
+          const names = todo.map(p => p.name).join(', ');
+          return names.length > 200 ? names.slice(0, 197) + '...' : names;
+        })();
+
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: WATERING_DAILY_ID,
+          title,
+          body,
+          schedule: { at, repeats: true, every: 'day' },
+          smallIcon: 'ic_stat_icon_config_sample',
+          extra: { kind: 'watering-summary' },
+        },
+      ],
+    });
+  } catch (e) {
+    console.warn('[notifications] watering summary schedule failed', e);
+  }
+}
+
+export async function cancelDailyWateringSummary(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    await LocalNotifications.cancel({ notifications: [{ id: WATERING_DAILY_ID }] });
+  } catch (e) {
+    console.warn('[notifications] watering summary cancel failed', e);
   }
 }
 
