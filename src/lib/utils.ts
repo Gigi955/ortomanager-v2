@@ -66,13 +66,34 @@ export function getStatusLabel(status: Plant['status']): string {
   return `status.${status}`;
 }
 
-export function needsWatering(plant: Pick<Plant, 'lastWatered' | 'wateringFrequency'>): boolean {
-  if (!plant.lastWatered) return true;
-  const daysSince = Math.floor((Date.now() - new Date(plant.lastWatered).getTime()) / (1000 * 60 * 60 * 24));
-  return daysSince >= plant.wateringFrequency;
+// Frequenza di irrigazione normalizzata: numero intero >= 1 (robusto a stringhe/valori mancanti)
+function wateringFreq(plant: Pick<Plant, 'wateringFrequency'>): number {
+  const n = Math.floor(Number(plant.wateringFrequency));
+  return Number.isFinite(n) && n >= 1 ? n : 1;
 }
 
+// Giorni di CALENDARIO trascorsi tra due date (entrambe azzerate a mezzanotte),
+// così "innaffiata oggi" = 0 giorni a prescindere dall'ora dell'innaffiatura.
+function calendarDaysBetween(from: Date, to: Date = new Date()): number {
+  const a = new Date(from); a.setHours(0, 0, 0, 0);
+  const b = new Date(to); b.setHours(0, 0, 0, 0);
+  return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export function needsWatering(plant: Pick<Plant, 'lastWatered' | 'wateringFrequency'>): boolean {
+  if (!plant.lastWatered) return true;
+  return calendarDaysBetween(new Date(plant.lastWatered)) >= wateringFreq(plant);
+}
+
+// Giorni di calendario dall'ultima innaffiatura (0 = oggi). Se mai innaffiata, ritorna -1.
 export function daysSinceWatered(plant: Pick<Plant, 'lastWatered' | 'wateringFrequency'>): number {
-  if (!plant.lastWatered) return plant.wateringFrequency + 1;
-  return Math.floor((Date.now() - new Date(plant.lastWatered).getTime()) / (1000 * 60 * 60 * 24));
+  if (!plant.lastWatered) return -1;
+  return calendarDaysBetween(new Date(plant.lastWatered));
+}
+
+// Giorni mancanti alla prossima irrigazione. <= 0 quando la pianta è già da innaffiare.
+// Se mai innaffiata, ritorna 0 (da innaffiare subito).
+export function daysUntilWatering(plant: Pick<Plant, 'lastWatered' | 'wateringFrequency'>): number {
+  if (!plant.lastWatered) return 0;
+  return wateringFreq(plant) - calendarDaysBetween(new Date(plant.lastWatered));
 }

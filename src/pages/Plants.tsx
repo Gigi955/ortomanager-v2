@@ -37,7 +37,7 @@ import {
   Link2,
   Paperclip,
 } from 'lucide-react';
-import { formatShortDate, getStatusColor, getStatusLabel, needsWatering } from '@/lib/utils';
+import { formatShortDate, getStatusColor, getStatusLabel, needsWatering, daysSinceWatered, daysUntilWatering } from '@/lib/utils';
 import { waterMlPerPlant, formatWater, isSeasonalActive } from '@/lib/water';
 import AddPlantDialog from '@/components/AddPlantDialog';
 import EditPlantDialog from '@/components/EditPlantDialog';
@@ -188,7 +188,24 @@ function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; on
   const [expanded, setExpanded] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const needsWater = needsWatering(plant);
+  const sinceWatered = daysSinceWatered(plant);   // -1 = mai innaffiata, 0 = oggi
+  const untilWatering = daysUntilWatering(plant);  // <= 0 = da innaffiare
   const waterPerPlant = waterMlPerPlant(plant);
+
+  // Testo descrittivo dello stato di irrigazione (quando innaffiata l'ultima volta / prossima)
+  const waterStatusText = (() => {
+    if (sinceWatered < 0) return t('plants.water_status_never');
+    if (untilWatering <= 0) {
+      const overdue = -untilWatering;
+      if (overdue === 0) return t('plants.water_due_today');
+      return t(overdue === 1 ? 'plants.water_due_overdue_one' : 'plants.water_due_overdue_other', { count: overdue });
+    }
+    const last = sinceWatered === 0
+      ? t('plants.water_since_today')
+      : t(sinceWatered === 1 ? 'plants.water_since_one' : 'plants.water_since_other', { count: sinceWatered });
+    const next = t(untilWatering === 1 ? 'plants.water_next_one' : 'plants.water_next_other', { count: untilWatering });
+    return `${last} · ${next}`;
+  })();
   const seasonal = isSeasonalActive(plant);
 
   // Tutte le foto della pianta (compatibilità legacy imageUrl + nuovo images[])
@@ -286,6 +303,12 @@ function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; on
             <span>
               {formatWater(waterPerPlant, lang)} {t('plants.per_plant_suffix')}
               {seasonal && <span className="ml-1 text-[10px] text-muted-foreground">🍂 {t('plants.seasonal_short')}</span>}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 col-span-2">
+            <Droplet className={`w-3.5 h-3.5 ${needsWater ? 'text-blue-500' : 'text-green-500'}`} />
+            <span className={needsWater ? 'text-blue-600 font-medium' : 'text-muted-foreground'}>
+              {waterStatusText}
             </span>
           </div>
         </div>
