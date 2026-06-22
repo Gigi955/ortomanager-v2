@@ -44,6 +44,7 @@ import EditPlantDialog from '@/components/EditPlantDialog';
 import PlantDiagnosticDialog from '@/components/PlantDiagnosticDialog';
 import PlantPhotoTimelineDialog from '@/components/PlantPhotoTimelineDialog';
 import { sharePlant } from '@/lib/share';
+import { scheduleDailyWateringSummary } from '@/lib/notifications';
 import { toast } from 'sonner';
 
 //  Pannello espandibile con i dettagli della PlantType
@@ -186,6 +187,7 @@ function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; on
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.split('-')[0] || 'it';
   const [expanded, setExpanded] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const needsWater = needsWatering(plant);
   const sinceWatered = daysSinceWatered(plant);   // -1 = mai innaffiata, 0 = oggi
@@ -320,6 +322,7 @@ function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; on
             className="flex-1 text-xs border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl"
             onClick={async () => {
               await db.plants.update(plant.id!, { lastWatered: new Date() });
+              scheduleDailyWateringSummary();
             }}
           >
             <Droplet className="w-3.5 h-3.5 mr-1" />
@@ -358,11 +361,29 @@ function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; on
           </Button>
         </div>
 
-        {plant.notes && (
-          <div className="mt-3 p-3 bg-garden-cream/50 rounded-lg">
-            <p className="text-sm text-gray-700"> {plant.notes}</p>
-          </div>
-        )}
+        {plant.notes && (() => {
+          const isLong = plant.notes.length > 120 || plant.notes.includes('\n');
+          return (
+            <div className="mt-3 p-3 bg-garden-cream/50 rounded-lg">
+              <p className={`text-sm text-gray-700 whitespace-pre-wrap ${isLong && !notesExpanded ? 'line-clamp-3' : ''}`}>
+                {plant.notes}
+              </p>
+              {isLong && (
+                <button
+                  type="button"
+                  onClick={() => setNotesExpanded(v => !v)}
+                  className="mt-1 flex items-center gap-1 text-xs text-garden-leaf font-medium"
+                >
+                  {notesExpanded ? (
+                    <><ChevronUp className="w-3.5 h-3.5" />{t('plants.notes_collapse')}</>
+                  ) : (
+                    <><ChevronDown className="w-3.5 h-3.5" />{t('plants.notes_read_more')}</>
+                  )}
+                </button>
+              )}
+            </div>
+          );
+        })()}
 
         {plant.attachments && plant.attachments.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">

@@ -81,8 +81,8 @@ export default function StatisticsPage() {
       else if (h.unit === 'g') entry.total += h.quantity / 1000;
       else entry.total += h.quantity * 0.1; // stima pezzi
     });
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [currentYearHarvests, plantMap]);
+    return Array.from(map.values()).sort((a, b) => a.plant.name.localeCompare(b.plant.name, lang));
+  }, [currentYearHarvests, plantMap, lang]);
 
   // Risparmio autoproduzione (anno corrente): somma di quantita * price per pianta
   const savingsByPlant = useMemo(() => {
@@ -95,8 +95,8 @@ export default function StatisticsPage() {
       if (!map.has(h.plantId)) map.set(h.plantId, { plant, total: 0 });
       map.get(h.plantId)!.total += value;
     });
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [currentYearHarvests, plantMap]);
+    return Array.from(map.values()).sort((a, b) => a.plant.name.localeCompare(b.plant.name, lang));
+  }, [currentYearHarvests, plantMap, lang]);
 
   const savingsMonthly = useMemo(() => {
     const arr = new Array(12).fill(0);

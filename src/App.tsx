@@ -42,6 +42,16 @@ function AppContent() {
       .catch(console.error);
   }, []);
 
+  // Riprogramma la notifica innaffiatura quando l'app torna in primo piano,
+  // così il riepilogo delle 7:00 riflette sempre lo stato reale delle piante.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') scheduleDailyWateringSummary();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
   // Applica palette personalizzata da settings
   useEffect(() => {
     const apply = async () => {
