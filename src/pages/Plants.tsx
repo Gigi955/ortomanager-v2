@@ -189,7 +189,7 @@ function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; on
   const [expanded, setExpanded] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const needsWater = needsWatering(plant);
+  const needsWater = plant.status !== 'uprooted' && needsWatering(plant);
   const sinceWatered = daysSinceWatered(plant);   // -1 = mai innaffiata, 0 = oggi
   const untilWatering = daysUntilWatering(plant);  // <= 0 = da innaffiare
   const waterPerPlant = waterMlPerPlant(plant);
@@ -627,14 +627,9 @@ export default function PlantsPage() {
     return matchesSearch && matchesCategory;
   });
 
-  // Ordina: prima le piante che hanno bisogno di acqua (needsWatering()),
-  // mantenendo per il resto l'ordine originale (Array.sort è stabile su V8 ≥ 7).
+  // Ordina i nomi delle piante in ordine alfabetico.
   const sortedPlants = filteredPlants
-    ? [...filteredPlants].sort((a, b) => {
-        const aNeeds = (a.status !== 'uprooted' && needsWatering(a)) ? 0 : 1;
-        const bNeeds = (b.status !== 'uprooted' && needsWatering(b)) ? 0 : 1;
-        return aNeeds - bNeeds;
-      })
+    ? [...filteredPlants].sort((a, b) => a.name.localeCompare(b.name, 'it'))
     : filteredPlants;
 
   const filteredTypes = plantTypes?.filter(pt => {
