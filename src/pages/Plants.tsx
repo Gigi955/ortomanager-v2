@@ -183,7 +183,7 @@ function PlantTypeDetails({ plantType }: { plantType: PlantType }) {
 }
 
 //  Card singola pianta utente
-function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; onEdit: (p: Plant) => void; onDiagnose: (p: Plant) => void; onTimeline: (p: Plant) => void }) {
+export function PlantCard({ plant, onEdit, onDiagnose, onTimeline }: { plant: Plant; onEdit: (p: Plant) => void; onDiagnose: (p: Plant) => void; onTimeline: (p: Plant) => void }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.split('-')[0] || 'it';
   const [expanded, setExpanded] = useState(false);

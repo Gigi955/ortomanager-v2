@@ -1,4 +1,10 @@
 {
+  "watering_today": {
+    "title": "Heute zu gießen",
+    "count_one": "{{count}} Pflanze zu gießen",
+    "count_other": "{{count}} Pflanzen zu gießen",
+    "empty": "Alles gegossen! Heute keine Pflanzen zu gießen."
+  },
   "common": {
     "cancel": "Abbrechen",
     "save": "Speichern",

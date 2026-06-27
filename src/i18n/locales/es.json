@@ -1,4 +1,10 @@
 {
+  "watering_today": {
+    "title": "Para regar hoy",
+    "count_one": "{{count}} planta para regar",
+    "count_other": "{{count}} plantas para regar",
+    "empty": "¡Todo regado! No hay plantas para regar hoy."
+  },
   "common": {
     "cancel": "Cancelar",
     "save": "Guardar",

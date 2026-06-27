@@ -90,17 +90,19 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white/90 backdrop-blur">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{t('home.to_water')}</p>
-                <p className="text-2xl font-bold text-garden-water">{needsWateringCount}</p>
+        <Link to="/da-innaffiare" className="block">
+          <Card className="bg-white/90 backdrop-blur hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('home.to_water')}</p>
+                  <p className="text-2xl font-bold text-garden-water">{needsWateringCount}</p>
+                </div>
+                <Droplet className="w-10 h-10 text-garden-water opacity-50" />
               </div>
-              <Droplet className="w-10 h-10 text-garden-water opacity-50" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
 
         <Card className="bg-white/90 backdrop-blur">
           <CardContent className="p-4">

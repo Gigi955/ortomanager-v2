@@ -1,4 +1,10 @@
 {
+  "watering_today": {
+    "title": "Da annaffiare oggi",
+    "count_one": "{{count}} pianta da annaffiare",
+    "count_other": "{{count}} piante da annaffiare",
+    "empty": "Tutto innaffiato! Nessuna pianta da annaffiare oggi."
+  },
   "common": {
     "cancel": "Annulla",
     "save": "Salva",

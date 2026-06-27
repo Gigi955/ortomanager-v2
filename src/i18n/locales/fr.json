@@ -1,4 +1,10 @@
 {
+  "watering_today": {
+    "title": "À arroser aujourd'hui",
+    "count_one": "{{count}} plante à arroser",
+    "count_other": "{{count}} plantes à arroser",
+    "empty": "Tout est arrosé ! Aucune plante à arroser aujourd'hui."
+  },
   "common": {
     "cancel": "Annuler",
     "save": "Enregistrer",

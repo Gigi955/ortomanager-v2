@@ -1,4 +1,10 @@
 {
+  "watering_today": {
+    "title": "To water today",
+    "count_one": "{{count}} plant to water",
+    "count_other": "{{count}} plants to water",
+    "empty": "All watered! No plants to water today."
+  },
   "common": {
     "cancel": "Cancel",
     "save": "Save",
